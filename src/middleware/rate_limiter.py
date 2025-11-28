@@ -17,7 +17,6 @@ from src.config import get_settings
 from src.logging_config import get_logger
 
 logger = get_logger("rate_limiter")
-settings = get_settings()
 
 
 @dataclass
@@ -88,6 +87,10 @@ class RateLimiter:
         self._refill(bucket)
         return int(bucket.tokens)
 
+    def reset(self) -> None:
+        """Reset all rate limit buckets. Useful for testing."""
+        self.buckets.clear()
+
     def cleanup_old_buckets(self, max_age_seconds: int = 3600) -> int:
         """
         Remove old buckets to prevent memory growth.
@@ -123,10 +126,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     # Paths with stricter rate limits (auth endpoints)
     AUTH_PATHS = {"/api/v1/auth/register", "/api/v1/auth/login"}
     AUTH_RATE_LIMIT = 5  # requests per minute
+    
+    # Class-level limiters for testing access
+    _default_limiter = None
+    _auth_limiter = None
 
     def __init__(self, app):
         """Initialize middleware with rate limiters."""
         super().__init__(app)
+        settings = get_settings()
         self.default_limiter = RateLimiter(
             requests_per_minute=settings.rate_limit_per_minute,
             burst=settings.rate_limit_burst,
@@ -136,6 +144,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             burst=3,
         )
         self._last_cleanup = time.time()
+        # Store references at class level for testing
+        RateLimitMiddleware._default_limiter = self.default_limiter
+        RateLimitMiddleware._auth_limiter = self.auth_limiter
+    
+    @classmethod
+    def reset_all_limiters(cls):
+        """Reset all rate limiters. Useful for testing."""
+        if cls._default_limiter:
+            cls._default_limiter.reset()
+        if cls._auth_limiter:
+            cls._auth_limiter.reset()
 
     def _get_client_ip(self, request: Request) -> str:
         """Extract client IP from request, considering proxy headers."""
