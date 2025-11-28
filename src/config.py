@@ -5,7 +5,7 @@ Uses Pydantic Settings for environment variable parsing and validation.
 """
 
 from functools import lru_cache
-from typing import List
+from typing import List, Union
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,6 +19,8 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
+        # Don't try to parse complex types from env vars as JSON
+        env_parse_none_str="None",
     )
 
     # Application
@@ -59,8 +61,8 @@ class Settings(BaseSettings):
     log_max_bytes: int = Field(default=10485760)  # 10 MB
     log_backup_count: int = Field(default=5)
 
-    # CORS
-    cors_origins: List[str] = Field(default=["http://localhost:3000"])
+    # CORS - Accept string or list, will be parsed by validator
+    cors_origins: Union[str, List[str]] = Field(default=["http://localhost:3000"])
 
     # Scheduler
     scheduler_enabled: bool = Field(default=True)
@@ -68,16 +70,22 @@ class Settings(BaseSettings):
 
     @field_validator("cors_origins", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v):
+    def parse_cors_origins(cls, v) -> List[str]:
         """Parse CORS origins from string or list."""
         if isinstance(v, str):
+            # Try JSON first for ["url1", "url2"] format
             import json
-
             try:
-                return json.loads(v)
+                parsed = json.loads(v)
+                if isinstance(parsed, list):
+                    return parsed
             except json.JSONDecodeError:
-                return [origin.strip() for origin in v.split(",")]
-        return v
+                pass
+            # Fall back to comma-separated
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        if isinstance(v, list):
+            return v
+        return ["http://localhost:3000"]
 
     @property
     def is_production(self) -> bool:
