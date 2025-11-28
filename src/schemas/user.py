@@ -141,6 +141,8 @@ class InterestSummary(BaseModel):
     slug: str
     name: str
 
+    model_config = {"from_attributes": True}
+
 
 class UserResponse(BaseModel):
     """Response schema for user data."""

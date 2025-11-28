@@ -7,8 +7,8 @@ from datetime import date, datetime, timezone
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List
 
-from sqlalchemy import Date, DateTime, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Date, DateTime, Integer, String, Text, UniqueConstraint, JSON
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey
 
@@ -58,13 +58,15 @@ class Digest(Base):
         String(500),
         nullable=True,
     )
+    # Use JSON instead of JSONB for cross-database compatibility (SQLite in tests)
+    # PostgreSQL will still get good performance with JSON type
     headlines_used: Mapped[List[Dict[str, Any]]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=False,
         default=list,
     )
     interests_included: Mapped[List[str]] = mapped_column(
-        JSONB,
+        JSON,
         nullable=False,
         default=list,
     )
