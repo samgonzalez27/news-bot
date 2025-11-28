@@ -1,0 +1,123 @@
+# =============================================================================
+# News Digest API - Docker Compose Configuration
+# =============================================================================
+# Usage:
+#   Development: docker-compose up -d
+#   Production:  docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   Logs:        docker-compose logs -f api
+#   Stop:        docker-compose down
+#   Clean:       docker-compose down -v (removes volumes)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # API Service - FastAPI Application
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: news-digest-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Database connection (uses service name 'db' as host)
+      - DATABASE_URL=postgresql+asyncpg://newsdigest:${POSTGRES_PASSWORD:-newsdigest_secret}@db:5432/newsdigest_db
+      # Application settings
+      - APP_ENV=${APP_ENV:-production}
+      - DEBUG=${DEBUG:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Secrets (loaded from .env file)
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - NEWSAPI_KEY=${NEWSAPI_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # Optional settings
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
+      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - app-logs:/var/log/news-digest
+    networks:
+      - news-digest-network
+
+  # ---------------------------------------------------------------------------
+  # Database Service - PostgreSQL
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: news-digest-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=newsdigest
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-newsdigest_secret}
+      - POSTGRES_DB=newsdigest_db
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U newsdigest -d newsdigest_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - news-digest-network
+    # Uncomment to expose PostgreSQL port for debugging
+    # ports:
+    #   - "5432:5432"
+
+    # ---------------------------------------------------------------------------
+    # Scheduler Service (Optional - for externalized scheduler)
+    # ---------------------------------------------------------------------------
+    # Uncomment this service if you want to run the scheduler separately
+    # from the main API. This is useful for horizontal scaling.
+    #
+    # scheduler:
+    #   build:
+    #     context: .
+    #     dockerfile: Dockerfile
+    #   container_name: news-digest-scheduler
+    #   restart: unless-stopped
+    #   command: ["python", "-m", "src.scheduler_worker"]
+    #   environment:
+    #     - DATABASE_URL=postgresql+asyncpg://newsdigest:${POSTGRES_PASSWORD:-newsdigest_secret}@db:5432/newsdigest_db
+    #     - APP_ENV=${APP_ENV:-production}
+    #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    #     - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+    #     - NEWSAPI_KEY=${NEWSAPI_KEY}
+    #     - OPENAI_API_KEY=${OPENAI_API_KEY}
+    #     - SCHEDULER_ENABLED=true
+    #   depends_on:
+    #     db:
+    #       condition: service_healthy
+    #   volumes:
+    #     - app-logs:/var/log/news-digest
+    #   networks:
+    #     - news-digest-network
+
+    # -----------------------------------------------------------------------------
+    # Volumes - Persistent storage
+    # -----------------------------------------------------------------------------
+volumes:
+  postgres-data:
+    driver: local
+  app-logs:
+    driver: local
+
+# -----------------------------------------------------------------------------
+# Networks - Service communication
+# -----------------------------------------------------------------------------
+networks:
+  news-digest-network:
+    driver: bridge

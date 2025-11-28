@@ -1,0 +1,72 @@
+# =============================================================================
+# Docker Ignore - Exclude files from build context
+# =============================================================================
+
+# Version control
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+env
+ENV
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.nox
+coverage.xml
+*.cover
+*.py,cover
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Build artifacts
+build
+dist
+*.egg-info
+.eggs
+
+# Documentation (keep docs/ but exclude build)
+docs/_build
+
+# Environment files (secrets - use docker secrets or env vars)
+.env
+.env.*
+!.env.example
+
+# Local development
+*.log
+*.sqlite
+*.db
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker
+.dockerignore
+
+# Kubernetes
+kubernetes/
+
+# CI/CD
+.github
+
+# Misc
+*.md
+!README.md
+LICENSE
+Makefile
