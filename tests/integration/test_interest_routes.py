@@ -205,6 +205,33 @@ class TestAddSingleInterest:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["slug"] == "technology"
 
+    def test_add_interest_invalid_slug(self, client):
+        """Should reject invalid interest slug."""
+        # Setup user
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "intbadslug@example.com",
+                "password": "SecurePass123",
+                "full_name": "Bad Slug Interest",
+            },
+        )
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "intbadslug@example.com",
+                "password": "SecurePass123",
+            },
+        )
+        token = login_response.json()["access_token"]
+
+        response = client.post(
+            "/api/v1/interests/me/nonexistent-slug",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
     def test_add_interest_already_exists(self, client):
         """Should handle adding already-subscribed interest."""
         # Setup user
@@ -266,3 +293,30 @@ class TestRemoveSingleInterest:
         # Verify removed
         interests = client.get("/api/v1/interests/me", headers=headers).json()
         assert len(interests) == 0
+
+    def test_remove_interest_invalid_slug(self, client):
+        """Should reject removing non-existent interest slug."""
+        # Setup user
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "intrembad@example.com",
+                "password": "SecurePass123",
+                "full_name": "Remove Bad Interest",
+            },
+        )
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "intrembad@example.com",
+                "password": "SecurePass123",
+            },
+        )
+        token = login_response.json()["access_token"]
+
+        response = client.delete(
+            "/api/v1/interests/me/nonexistent-slug",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND

@@ -187,6 +187,8 @@ class TestDigestHistoryFlow:
 
     def test_multiple_digests_pagination(self, client):
         """User can paginate through multiple digests."""
+        from datetime import date, timedelta
+        
         # Setup user
         client.post(
             "/api/v1/auth/register",
@@ -206,9 +208,15 @@ class TestDigestHistoryFlow:
         token = login_response.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}
 
-        # Generate multiple digests
-        for _ in range(3):
-            client.post("/api/v1/digests/generate", headers=headers)
+        # Generate multiple digests for different dates
+        today = date.today()
+        for i in range(1, 4):
+            digest_date = (today - timedelta(days=i)).isoformat()
+            client.post(
+                "/api/v1/digests/generate",
+                headers=headers,
+                json={"digest_date": digest_date},
+            )
 
         # Test pagination - page 1
         page1 = client.get("/api/v1/digests?page=1&per_page=2", headers=headers).json()

@@ -120,6 +120,45 @@ class TestUpdateCurrentUser:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["email"] == "newemail@example.com"
 
+    def test_update_email_duplicate(self, client):
+        """Should reject duplicate email."""
+        # Create first user
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "first@example.com",
+                "password": "SecurePass123",
+                "full_name": "First User",
+            },
+        )
+        
+        # Create second user
+        client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "second@example.com",
+                "password": "SecurePass123",
+                "full_name": "Second User",
+            },
+        )
+        login_response = client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "second@example.com",
+                "password": "SecurePass123",
+            },
+        )
+        token = login_response.json()["access_token"]
+
+        # Try to update to first user's email
+        response = client.patch(
+            "/api/v1/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"email": "first@example.com"},
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+
 
 class TestUpdatePreferences:
     """Tests for PATCH /api/v1/users/me/preferences."""
