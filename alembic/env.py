@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # Import settings and models
-from src.config import settings
+from src.config import get_settings
 from src.database import Base
 
 # Import all models to ensure they're registered with Base.metadata
@@ -24,7 +24,8 @@ from src.models import User, UserInterest, Interest, Digest
 # this is the Alembic Config object
 config = context.config
 
-# Override sqlalchemy.url with the value from settings
+# Override sqlalchemy.url with the value from settings (lazy - only when alembic runs)
+settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging
