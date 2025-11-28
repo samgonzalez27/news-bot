@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import get_settings
-from src.database import async_session_maker
+from src.database import get_async_session_maker
 from src.logging_config import get_logger
 from src.models.user import User
 from src.scheduler.scheduler import scheduler
@@ -19,7 +19,6 @@ from src.services.digest_service import DigestService
 from src.services.interest_service import InterestService
 
 logger = get_logger("scheduler_jobs")
-settings = get_settings()
 
 
 async def get_users_due_for_digest(
@@ -79,7 +78,8 @@ async def generate_user_digest(user_id: UUID) -> bool:
     Returns:
         bool: True if successful, False otherwise.
     """
-    async with async_session_maker() as db:
+    session_maker = get_async_session_maker()
+    async with session_maker() as db:
         try:
             digest_service = DigestService(db)
             digest = await digest_service.generate_digest(
@@ -110,10 +110,12 @@ async def process_digest_generation() -> None:
     and generates digests for users whose preferred time falls within
     the current window.
     """
+    settings = get_settings()
     logger.debug("Starting digest generation check")
     current_time = datetime.now(timezone.utc)
 
-    async with async_session_maker() as db:
+    session_maker = get_async_session_maker()
+    async with session_maker() as db:
         try:
             # Get users due for digest
             users = await get_users_due_for_digest(
@@ -170,6 +172,7 @@ def schedule_digest_jobs() -> None:
 
     Called during scheduler startup.
     """
+    settings = get_settings()
     # Digest generation job - runs every N minutes
     scheduler.add_job(
         digest_generation_job,
@@ -190,7 +193,8 @@ async def seed_interests_on_startup() -> None:
     """
     Seed predefined interests on application startup.
     """
-    async with async_session_maker() as db:
+    session_maker = get_async_session_maker()
+    async with session_maker() as db:
         try:
             interest_service = InterestService(db)
             created = await interest_service.seed_interests()

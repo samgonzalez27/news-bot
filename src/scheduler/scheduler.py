@@ -10,7 +10,6 @@ from src.config import get_settings
 from src.logging_config import get_logger
 
 logger = get_logger("scheduler")
-settings = get_settings()
 
 # Configure job stores and executors
 jobstores = {
@@ -42,6 +41,7 @@ def start_scheduler() -> None:
 
     Should be called during application startup.
     """
+    settings = get_settings()
     if not settings.scheduler_enabled:
         logger.info("Scheduler is disabled by configuration")
         return
