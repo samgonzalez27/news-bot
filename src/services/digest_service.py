@@ -169,13 +169,16 @@ class DigestService:
             digest_date = date.today() - timedelta(days=1)
 
         # Check for existing digest
-        if not force:
-            existing = await self.get_digest_by_date(user_id, digest_date)
-            if existing and existing.status == DigestStatus.COMPLETED.value:
+        existing = await self.get_digest_by_date(user_id, digest_date)
+        if existing:
+            if not force and existing.status == DigestStatus.COMPLETED.value:
                 logger.debug(
                     f"Digest already exists for user {user_id} on {digest_date}"
                 )
                 return existing
+            # If force=True, delete the existing digest to regenerate
+            elif force:
+                await self.delete_digest(existing.id, user_id)
 
         # Get user and their interests
         user_stmt = select(User).where(User.id == user_id)

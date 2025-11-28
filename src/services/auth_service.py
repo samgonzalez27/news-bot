@@ -14,7 +14,6 @@ from src.exceptions import InvalidTokenError, TokenExpiredError
 from src.logging_config import get_logger
 
 logger = get_logger("auth_service")
-settings = get_settings()
 
 # Argon2 password hasher with secure defaults
 password_hasher = argon2.PasswordHasher(
@@ -76,6 +75,7 @@ class AuthService:
         Returns:
             str: Encoded JWT token.
         """
+        settings = get_settings()
         if expires_delta is None:
             expires_delta = timedelta(minutes=settings.jwt_access_token_expire_minutes)
 
@@ -113,6 +113,7 @@ class AuthService:
             TokenExpiredError: If token has expired.
             InvalidTokenError: If token is invalid.
         """
+        settings = get_settings()
         try:
             payload = jwt.decode(
                 token,
@@ -167,4 +168,5 @@ class AuthService:
         Returns:
             int: Token expiration in seconds.
         """
+        settings = get_settings()
         return settings.jwt_access_token_expire_minutes * 60

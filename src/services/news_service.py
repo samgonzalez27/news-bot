@@ -12,7 +12,6 @@ from src.exceptions import NewsAPIError
 from src.logging_config import get_logger
 
 logger = get_logger("news_service")
-settings = get_settings()
 
 # NewsAPI base URL
 NEWSAPI_BASE_URL = "https://newsapi.org/v2"
@@ -27,6 +26,7 @@ class NewsService:
 
     def __init__(self):
         """Initialize news service with HTTP client."""
+        settings = get_settings()
         self.api_key = settings.newsapi_key
         self.client = httpx.AsyncClient(
             timeout=30.0,

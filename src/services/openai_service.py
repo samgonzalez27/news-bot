@@ -11,7 +11,6 @@ from src.exceptions import OpenAIError
 from src.logging_config import get_logger
 
 logger = get_logger("openai_service")
-settings = get_settings()
 
 # OpenAI API base URL
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
@@ -54,6 +53,7 @@ class OpenAIService:
 
     def __init__(self):
         """Initialize OpenAI service with HTTP client."""
+        settings = get_settings()
         self.api_key = settings.openai_api_key
         self.model = settings.openai_model
         self.max_tokens = settings.openai_max_tokens
