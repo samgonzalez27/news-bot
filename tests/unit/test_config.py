@@ -7,6 +7,10 @@ from unittest.mock import patch
 import os
 
 
+# Valid test secret key (must be at least 32 characters)
+TEST_SECRET_KEY = "test-secret-key-that-is-at-least-32-chars-long"
+
+
 class TestSettings:
     """Tests for Settings class."""
 
@@ -15,7 +19,7 @@ class TestSettings:
         from src.config import Settings
         
         with patch.dict(os.environ, {
-            "JWT_SECRET_KEY": "test-secret",
+            "JWT_SECRET_KEY": TEST_SECRET_KEY,
             "NEWSAPI_KEY": "test-news-key",
             "OPENAI_API_KEY": "test-openai-key",
             "CORS_ORIGINS": '["http://localhost:3000", "http://localhost:8080"]',
@@ -32,7 +36,7 @@ class TestSettings:
         from src.config import Settings
         
         with patch.dict(os.environ, {
-            "JWT_SECRET_KEY": "test-secret",
+            "JWT_SECRET_KEY": TEST_SECRET_KEY,
             "NEWSAPI_KEY": "test-news-key",
             "OPENAI_API_KEY": "test-openai-key",
             "CORS_ORIGINS": "http://localhost:3000,http://localhost:8080",
@@ -49,7 +53,7 @@ class TestSettings:
         from src.config import Settings
         
         with patch.dict(os.environ, {
-            "JWT_SECRET_KEY": "test-secret",
+            "JWT_SECRET_KEY": TEST_SECRET_KEY,
             "NEWSAPI_KEY": "test-news-key",
             "OPENAI_API_KEY": "test-openai-key",
             "APP_ENV": "production",
@@ -66,7 +70,7 @@ class TestSettings:
         from src.config import Settings
         
         with patch.dict(os.environ, {
-            "JWT_SECRET_KEY": "test-secret",
+            "JWT_SECRET_KEY": TEST_SECRET_KEY,
             "NEWSAPI_KEY": "test-news-key",
             "OPENAI_API_KEY": "test-openai-key",
             "APP_ENV": "development",
