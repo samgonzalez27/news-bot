@@ -3,6 +3,7 @@ Pytest fixtures and configuration for the News Digest API tests.
 """
 
 import asyncio
+import os
 from datetime import datetime, timezone
 from typing import AsyncGenerator, Generator
 from uuid import uuid4
@@ -16,12 +17,25 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Set test environment variables BEFORE any src imports
+# This ensures Settings() validation passes if accidentally called during import
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-jwt-tokens-minimum-32-chars")
+os.environ.setdefault("NEWSAPI_KEY", "test-newsapi-key")
+os.environ.setdefault("OPENAI_API_KEY", "test-openai-api-key")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
+os.environ.setdefault("SCHEDULER_ENABLED", "false")
+
 from src.config import Settings, get_settings
-from src.database import Base, get_db
-from src.main import app
+from src.database import Base, get_db, reset_engine
+from src.main import app, _LazyApp
+from src.middleware.rate_limiter import RateLimitMiddleware
 from src.models.interest import Interest, PREDEFINED_INTERESTS
 from src.models.user import User
 from src.services.auth_service import AuthService
+
+# Reset the engine immediately after import to clear any cached state
+# This ensures tests use fresh database connections with test settings
+reset_engine()
 
 
 # Test database URL (SQLite for simplicity)
@@ -104,9 +118,11 @@ def test_settings() -> Settings:
 @pytest.fixture
 def override_settings(test_settings: Settings):
     """Override app settings for testing."""
-    app.dependency_overrides[get_settings] = lambda: test_settings
+    # Get the real FastAPI app instance from the lazy proxy
+    real_app = app._get_app()
+    real_app.dependency_overrides[get_settings] = lambda: test_settings
     yield
-    app.dependency_overrides.clear()
+    real_app.dependency_overrides.clear()
 
 
 @pytest_asyncio.fixture
@@ -115,9 +131,11 @@ async def override_db(db_session: AsyncSession):
     async def _get_test_db():
         yield db_session
 
-    app.dependency_overrides[get_db] = _get_test_db
+    # Get the real FastAPI app instance from the lazy proxy
+    real_app = app._get_app()
+    real_app.dependency_overrides[get_db] = _get_test_db
     yield
-    app.dependency_overrides.pop(get_db, None)
+    real_app.dependency_overrides.pop(get_db, None)
 
 
 @pytest_asyncio.fixture
@@ -126,29 +144,41 @@ async def override_seeded_db(seeded_db: AsyncSession):
     async def _get_test_db():
         yield seeded_db
 
-    app.dependency_overrides[get_db] = _get_test_db
+    # Get the real FastAPI app instance from the lazy proxy
+    real_app = app._get_app()
+    real_app.dependency_overrides[get_db] = _get_test_db
     yield
-    app.dependency_overrides.pop(get_db, None)
+    real_app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture
 def client(override_settings, override_seeded_db) -> TestClient:
     """Create synchronous test client with seeded database."""
-    with TestClient(app) as test_client:
+    real_app = app._get_app()
+    # Reset rate limiters to avoid 429 errors from previous tests
+    # Must be done after _get_app() to ensure middleware is initialized
+    RateLimitMiddleware.reset_all_limiters()
+    with TestClient(real_app) as test_client:
         yield test_client
 
 
 @pytest.fixture
 def client_no_seed(override_settings, override_db) -> TestClient:
     """Create synchronous test client without seeded interests."""
-    with TestClient(app) as test_client:
+    real_app = app._get_app()
+    # Reset rate limiters to avoid 429 errors from previous tests
+    RateLimitMiddleware.reset_all_limiters()
+    with TestClient(real_app) as test_client:
         yield test_client
 
 
 @pytest_asyncio.fixture
 async def async_client(override_settings, override_seeded_db) -> AsyncGenerator[AsyncClient, None]:
     """Create async test client with seeded database."""
-    transport = ASGITransport(app=app)
+    real_app = app._get_app()
+    # Reset rate limiters to avoid 429 errors from previous tests
+    RateLimitMiddleware.reset_all_limiters()
+    transport = ASGITransport(app=real_app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
