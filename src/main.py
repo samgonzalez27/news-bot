@@ -5,18 +5,27 @@ A FastAPI application that generates personalized daily news digests
 for users based on their selected interests.
 """
 
+import time
+import uuid
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.config import get_settings
 from src.database import close_db, init_db
 from src.exceptions import register_exception_handlers
-from src.logging_config import setup_logging
+from src.logging_config import get_logger, set_request_id, setup_logging
 from src.middleware.rate_limiter import RateLimitMiddleware
-from src.routers import auth_router, digests_router, interests_router, users_router
+from src.routers import (
+    auth_router,
+    digests_router,
+    health_router,
+    interests_router,
+    users_router,
+)
 from src.scheduler import start_scheduler, stop_scheduler
 from src.scheduler.jobs import seed_interests_on_startup
 from src.services.news_service import close_news_service
@@ -32,6 +41,38 @@ def _get_logger():
     if logger is None:
         logger = setup_logging()
     return logger
+
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Middleware to add request ID to each request for tracing."""
+
+    async def dispatch(self, request: Request, call_next):
+        # Get or generate request ID
+        request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        set_request_id(request_id)
+        
+        # Add request ID to response headers
+        start_time = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start_time) * 1000
+        
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Response-Time"] = f"{duration_ms:.2f}ms"
+        
+        # Log request completion
+        log = _get_logger()
+        log.info(
+            f"{request.method} {request.url.path} - {response.status_code} ({duration_ms:.2f}ms)",
+            extra={
+                "request_path": request.url.path,
+                "method": request.method,
+                "status_code": response.status_code,
+                "duration_ms": round(duration_ms, 2),
+                "client_ip": request.client.host if request.client else "unknown",
+            },
+        )
+        
+        return response
 
 
 @asynccontextmanager
@@ -120,6 +161,9 @@ def _create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Add request ID middleware (first, so it wraps everything)
+    application.add_middleware(RequestIDMiddleware)
+
     # Add CORS middleware
     application.add_middleware(
         CORSMiddleware,
@@ -136,27 +180,12 @@ def _create_app() -> FastAPI:
     register_exception_handlers(application)
 
     # Include routers
+    application.include_router(health_router)  # Health checks at /health/*
     application.include_router(auth_router, prefix=settings.api_v1_prefix)
     application.include_router(users_router, prefix=settings.api_v1_prefix)
     application.include_router(interests_router, prefix=settings.api_v1_prefix)
     application.include_router(digests_router, prefix=settings.api_v1_prefix)
     
-    # Add health check endpoint
-    @application.get(
-        "/health",
-        tags=["Health"],
-        summary="Health check endpoint",
-        description="Returns the health status of the API.",
-    )
-    async def health_check() -> dict:
-        """Health check endpoint for monitoring."""
-        return {
-            "status": "healthy",
-            "app": settings.app_name,
-            "version": "1.0.0",
-            "environment": settings.app_env,
-        }
-
     # Add root endpoint
     @application.get(
         "/",
