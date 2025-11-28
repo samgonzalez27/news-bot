@@ -126,3 +126,40 @@ Then proceed step-by-step through architecture, infrastructure, database schema,
 Do not generate frontend code.  
 Do not simplify requirements.  
 Produce work as if building a real, production-capable FastAPI service.
+
+---
+
+# Fixing pytest issues
+
+You are acting as a senior backend engineer helping diagnose and fix a FastAPI + pytest configuration issue. Provide deep reasoning and produce concrete patches.
+
+## Summary of the Problem
+Running `pytest` results in the following error:
+
+ImportError while loading conftest:
+ValidationError: 3 validation errors for Settings
+jwt_secret_key — Field required
+newsapi_key — Field required
+openai_api_key — Field required
+
+This occurs because `Settings()` (from Pydantic Settings) is being instantiated during import-time when pytest loads modules like `src/database.py` via `conftest.py`. Since pytest sets no environment variables by default, Pydantic raises missing-field validation errors and halts test collection.
+
+## What You Must Do
+1. Inspect the project’s configuration pattern (FastAPI + Pydantic Settings).  
+2. Identify the exact cause of settings evaluation during module import.  
+3. Redesign configuration loading to be **lazy, test-friendly, and import-safe**.  
+4. Provide the correct fix using one or more of these approaches:
+   - Lazy initialization pattern (only load settings inside functions or dependencies).
+   - Provide a `TestSettings` class for pytest.
+   - Set environment variables inside `conftest.py`.
+   - Use FastAPI dependency overrides for configuration.
+   - Refactor module imports so `Settings()` is not executed at import time.
+5. Provide complete patched code for:
+   - `src/config.py`
+   - `tests/conftest.py`
+   - Any other file that must be updated (e.g., `database.py`)
+6. Provide explanations of:
+   - Why this avoids early import errors
+   - How the structure improves testability and correctness
+
+Produce all output with staff-level engineering detail and clarity.
