@@ -18,6 +18,7 @@ import type {
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_PREFIX = '/api/v1';
 const TOKEN_KEY = 'newsdigest_token';
 
 /**
@@ -73,7 +74,7 @@ async function apiFetch<T>(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${API_BASE_URL}${API_PREFIX}${endpoint}`;
     const token = getToken();
 
     const headers: HeadersInit = {
@@ -254,5 +255,11 @@ export async function generateDigest(digestDate?: string): Promise<DigestDetail>
  * Check API health
  */
 export async function checkHealth(): Promise<{ status: string }> {
-    return apiFetch<{ status: string }>('/health');
+    // Health check uses root path, not API prefix
+    const url = `${API_BASE_URL}/health`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new ApiRequestError(response.status, 'Health check failed');
+    }
+    return response.json();
 }
