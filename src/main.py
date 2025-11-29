@@ -230,7 +230,14 @@ def reset_app() -> None:
 # For compatibility with uvicorn and existing imports
 # This creates the app lazily on first attribute access
 class _LazyApp:
-    """Proxy that creates the app on first access."""
+    """
+    ASGI-compatible lazy proxy that creates the app on first access.
+    
+    This ensures:
+    1. Settings are not loaded at import time (important for testing)
+    2. Full ASGI compatibility with uvicorn and other servers
+    3. The app instance is only created once
+    """
     _real_app = None
     
     def _get_app(self):
@@ -245,8 +252,10 @@ class _LazyApp:
     def __getattr__(self, name):
         return getattr(self._get_app(), name)
     
-    def __call__(self, *args, **kwargs):
-        return self._get_app()(*args, **kwargs)
+    async def __call__(self, scope, receive, send):
+        """ASGI interface - delegate to the real FastAPI app."""
+        app = self._get_app()
+        await app(scope, receive, send)
 
 
 app = _LazyApp()
