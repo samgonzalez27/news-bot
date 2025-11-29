@@ -1,0 +1,31 @@
+# =============================================================================
+# News Digest Frontend - Development Override
+# =============================================================================
+# This file provides development-specific configuration
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml up frontend
+# =============================================================================
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      target: builder # Stop at builder stage for dev
+    container_name: news-digest-frontend-dev
+    command: npm run dev
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
