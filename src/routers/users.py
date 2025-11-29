@@ -2,11 +2,15 @@
 User management routes.
 """
 
+from typing import List
+
 from fastapi import APIRouter, status
 
 from src.dependencies import CurrentUser, DbSession
 from src.logging_config import get_logger
+from src.schemas.interest import InterestResponse, UserInterestUpdate
 from src.schemas.user import UserPreferencesUpdate, UserResponse, UserUpdate
+from src.services.interest_service import InterestService
 from src.services.user_service import UserService
 
 logger = get_logger("users_router")
@@ -96,6 +100,46 @@ async def update_preferences(
     )
 
     logger.info(f"User preferences updated: {updated_user.email}")
+
+    return UserResponse.model_validate(updated_user)
+
+
+@router.put(
+    "/me/interests",
+    response_model=UserResponse,
+    summary="Update user's interests",
+    description="""
+    Replace the user's subscribed interests with a new list.
+    
+    Provide a list of interest slugs (e.g., ["technology", "economics"]).
+    This replaces all existing subscriptions.
+    """,
+    responses={
+        200: {"description": "Interests updated successfully"},
+        400: {"description": "Validation error"},
+        401: {"description": "Not authenticated"},
+        404: {"description": "One or more interests not found"},
+    },
+)
+async def update_user_interests(
+    interest_update: UserInterestUpdate,
+    current_user: CurrentUser,
+    db: DbSession,
+) -> UserResponse:
+    """Update the current user's subscribed interests."""
+    interest_service = InterestService(db)
+    await interest_service.update_user_interests(
+        user_id=current_user.id,
+        interest_slugs=interest_update.interest_slugs,
+    )
+
+    # Refresh user to get updated interests
+    user_service = UserService(db)
+    updated_user = await user_service.get_by_id(current_user.id)
+
+    logger.info(
+        f"User {current_user.email} updated interests via /users/me/interests"
+    )
 
     return UserResponse.model_validate(updated_user)
 
