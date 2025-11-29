@@ -1,4 +1,4 @@
-You are **Gemini 3 Pro**. Act as a senior full-stack frontend engineer. Your task: scaffold and implement a production-ready **Next.js + TypeScript + Tailwind + shadcn** frontend for the NewsDigest project using the exact constraints below. Produce a complete, copy/paste-ready file set and concise run/deploy commands. Target a static export (no Node server in production). Use React Context for auth/state. Store JWT in localStorage. Containerize the frontend and serve static files with Nginx on the same DigitalOcean droplet as the backend.
+You are **Claude Opus 4.5**. Act as a senior full-stack frontend engineer. Your task: scaffold and implement a production-ready **Next.js + TypeScript + Tailwind + shadcn** frontend for the NewsDigest project using the exact constraints below. Produce a complete, copy/paste-ready file set and concise run/deploy commands. Target a static export (no Node server in production). Use React Context for auth/state. Store JWT in localStorage. Containerize the frontend and serve static files with Nginx on the same DigitalOcean droplet as the backend.
 
 Do not add unrelated options. Do not ask clarifying questions. Assume the backend API described previously exists and is reachable at runtime under `http://backend:8000` within Docker Compose, and externally at `http://<droplet-ip>:8000` after deployment. Maintain production-level security and reliability.
 
@@ -19,9 +19,9 @@ Do not add unrelated options. Do not ask clarifying questions. Assume the backen
 
 ---
 
-## Deliverables (Gemini must output each file exactly)
+## Deliverables (Claude must output each file exactly)
 
-Gemini must generate **all** of the following files, each inside a single master markdown block, with section headers:
+Claude must generate **all** of the following files, each inside a single master markdown block, with section headers:
 
 1. `<FILE: package.json>`
 2. `<FILE: tsconfig.json>`
@@ -56,7 +56,7 @@ Gemini must generate **all** of the following files, each inside a single master
 
 ---
 
-## Implementation standards Gemini must follow
+## Implementation standards Claude must follow
 
 - All dynamic pages use client-side fetch hooks.  
 - Landing page uses SSG.  
@@ -72,7 +72,7 @@ Gemini must generate **all** of the following files, each inside a single master
 
 ## Acceptance criteria
 
-Gemini must:
+Claude must:
 
 - Output **all files**, syntactically correct, in a single markdown code block.  
 - Produce a frontend that builds successfully with:  
@@ -85,7 +85,7 @@ Gemini must:
 
 ## Output format
 
-Gemini must produce **one single markdown code block** containing all files, where each file begins with:
+Claude must produce **one single markdown code block** containing all files, where each file begins with:
 
 `<FILE: path>`
 
