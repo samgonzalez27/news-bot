@@ -1,16 +1,16 @@
 # Deployment Guide
 
-This document covers deploying the NewsDigest Backend API using Docker and CI/CD.
+This document covers deploying the full-stack NewsDigest application using Docker Compose.
 
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
 - [Environment Variables](#environment-variables)
-- [Local Development with Docker](#local-development-with-docker)
+- [Services Overview](#services-overview)
+- [Local Development](#local-development)
 - [Production Deployment](#production-deployment)
 - [Health Checks](#health-checks)
-- [Monitoring and Observability](#monitoring-and-observability)
-- [CI/CD Pipeline](#cicd-pipeline)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -18,415 +18,374 @@ This document covers deploying the NewsDigest Backend API using Docker and CI/CD
 ## Prerequisites
 
 - Docker 20.10+ and Docker Compose v2+
-- PostgreSQL 16+ (or use provided Docker Compose setup)
-- Python 3.12+ (for local development without Docker)
+- API Keys:
+  - NewsAPI key ([get one here](https://newsapi.org/))
+  - OpenAI API key ([get one here](https://platform.openai.com/))
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone the repository
+git clone <repository-url>
+cd news-bot
+
+# 2. Create environment file
+cp .env.example .env
+
+# 3. Edit .env with your API keys
+nano .env
+
+# 4. Start all services
+docker compose up --build
+
+# 5. Access the application
+# Frontend: http://localhost
+# API Docs: http://localhost/docs
+# pgAdmin:  http://localhost:5050
+```
 
 ---
 
 ## Environment Variables
 
-Create a `.env` file in the project root with the following variables:
-
 ### Required Variables
 
-| Variable         | Description                              | Example                                            |
-| ---------------- | ---------------------------------------- | -------------------------------------------------- |
-| `DATABASE_URL`   | PostgreSQL connection string             | `postgresql://user:pass@localhost:5432/newsdigest` |
-| `OPENAI_API_KEY` | OpenAI API key for digest generation     | `sk-...`                                           |
-| `NEWS_API_KEY`   | NewsAPI.org API key for article fetching | `abc123...`                                        |
-| `RESEND_API_KEY` | Resend.com API key for email delivery    | `re_...`                                           |
+| Variable            | Description                    | Example                |
+| ------------------- | ------------------------------ | ---------------------- |
+| `JWT_SECRET_KEY`    | JWT signing key (min 32 chars) | `openssl rand -hex 32` |
+| `NEWSAPI_KEY`       | NewsAPI.org API key            | `abc123...`            |
+| `OPENAI_API_KEY`    | OpenAI API key                 | `sk-...`               |
+| `POSTGRES_PASSWORD` | Database password              | `newsdigest_secret`    |
 
 ### Optional Variables
 
-| Variable                   | Description                    | Default        |
-| -------------------------- | ------------------------------ | -------------- |
-| `SECRET_KEY`               | JWT signing key                | Auto-generated |
-| `LOG_LEVEL`                | Logging level                  | `INFO`         |
-| `ENVIRONMENT`              | Deployment environment         | `development`  |
-| `SCHEDULER_ENABLED`        | Enable background scheduler    | `false`        |
-| `RATE_LIMIT_PER_MINUTE`    | API rate limit                 | `60`           |
-| `DIGEST_GENERATION_HOUR`   | Hour to generate digests (UTC) | `6`            |
-| `DIGEST_GENERATION_MINUTE` | Minute to generate digests     | `0`            |
+| Variable            | Description                 | Default                  |
+| ------------------- | --------------------------- | ------------------------ |
+| `APP_ENV`           | Environment mode            | `development`            |
+| `LOG_LEVEL`         | Logging level               | `INFO`                   |
+| `SCHEDULER_ENABLED` | Enable background scheduler | `true`                   |
+| `CORS_ORIGINS`      | Allowed CORS origins        | `http://localhost`       |
+| `PGADMIN_EMAIL`     | pgAdmin login email         | `admin@newsdigest.local` |
+| `PGADMIN_PASSWORD`  | pgAdmin login password      | `admin`                  |
 
 ### Example `.env` file
 
 ```bash
-# Database
-DATABASE_URL=postgresql://newsdigest:secretpassword@db:5432/newsdigest
+# Required - API Keys
+JWT_SECRET_KEY=your-super-secret-jwt-key-minimum-32-characters
+NEWSAPI_KEY=your-newsapi-key
+OPENAI_API_KEY=your-openai-key
+POSTGRES_PASSWORD=newsdigest_secret
 
-# API Keys
-OPENAI_API_KEY=sk-your-openai-key
-NEWS_API_KEY=your-newsapi-key
-RESEND_API_KEY=re_your-resend-key
-
-# Application Settings
-SECRET_KEY=your-super-secret-key-here
+# Optional - Application Settings
+APP_ENV=production
 LOG_LEVEL=INFO
-ENVIRONMENT=production
 SCHEDULER_ENABLED=true
-RATE_LIMIT_PER_MINUTE=60
+CORS_ORIGINS=http://localhost,http://yourdomain.com
 
-# Scheduler Settings
-DIGEST_GENERATION_HOUR=6
-DIGEST_GENERATION_MINUTE=0
+# Optional - pgAdmin
+PGADMIN_EMAIL=admin@newsdigest.local
+PGADMIN_PASSWORD=admin
 ```
 
 ---
 
-## Local Development with Docker
+## Services Overview
 
-### Quick Start
+The `docker-compose.yml` includes the following services:
 
-1. **Clone the repository:**
-   ```bash
-   git clone <repository-url>
-   cd news-bot
-   ```
+| Service    | Description         | Port     | URL                   |
+| ---------- | ------------------- | -------- | --------------------- |
+| `nginx`    | Reverse proxy       | 80       | http://localhost      |
+| `frontend` | Next.js static site | Internal | Via nginx             |
+| `api`      | FastAPI backend     | Internal | Via nginx at /api     |
+| `db`       | PostgreSQL 16       | Internal | -                     |
+| `pgadmin`  | Database admin      | 5050     | http://localhost:5050 |
 
-2. **Create environment file:**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
+### Architecture
 
-3. **Start all services:**
-   ```bash
-   docker compose up -d
-   ```
+```
+                    ┌─────────────┐
+                    │   nginx     │ :80
+                    │   (proxy)   │
+                    └──────┬──────┘
+                           │
+            ┌──────────────┼──────────────┐
+            │              │              │
+            ▼              ▼              ▼
+      ┌──────────┐  ┌──────────┐  ┌──────────┐
+      │ frontend │  │   api    │  │   docs   │
+      │ (static) │  │ (FastAPI)│  │ (/docs)  │
+      └──────────┘  └────┬─────┘  └──────────┘
+                         │
+                    ┌────┴────┐
+                    │   db    │
+                    │(postgres)│
+                    └─────────┘
+```
 
-4. **Access the API:**
-   - API: http://localhost:8000
-   - API Docs: http://localhost:8000/docs
-   - Health Check: http://localhost:8000/health
+---
 
-### Docker Compose Services
+## Local Development
 
-| Service  | Description          | Port |
-| -------- | -------------------- | ---- |
-| `api`    | FastAPI application  | 8000 |
-| `db`     | PostgreSQL database  | 5432 |
-| `worker` | Background scheduler | -    |
-
-### Useful Commands
+### Full Stack (Docker)
 
 ```bash
-# Start services
+# Start all services
 docker compose up -d
 
 # View logs
-docker compose logs -f api
-docker compose logs -f worker
+docker compose logs -f
 
-# Stop services
+# Stop all services
 docker compose down
 
-# Rebuild after code changes
-docker compose build
-docker compose up -d
+# Rebuild after changes
+docker compose up --build -d
+```
 
-# Reset database
-docker compose down -v
-docker compose up -d
+### Backend Only (Local Python)
 
-# Execute command in api container
-docker compose exec api bash
+```bash
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start database
+docker compose up -d db
+
+# Run migrations
+alembic upgrade head
+
+# Start server
+uvicorn src.main:app --reload --port 8000
+```
+
+### Frontend Only (Local Node.js)
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Set API URL (backend must be running)
+export NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# Start development server
+npm run dev
 ```
 
 ---
 
 ## Production Deployment
 
-### Building the Docker Image
+### DigitalOcean Droplet
 
-```bash
-# Build production image
-docker build -t newsdigest-api:latest .
+1. **Create a Droplet:**
+   - Ubuntu 22.04+
+   - 2GB RAM minimum
+   - Enable monitoring
 
-# Tag for registry
-docker tag newsdigest-api:latest ghcr.io/<username>/newsdigest-api:latest
+2. **Install Docker:**
+   ```bash
+   curl -fsSL https://get.docker.com | sh
+   sudo usermod -aG docker $USER
+   ```
 
-# Push to registry
-docker push ghcr.io/<username>/newsdigest-api:latest
+3. **Clone and Configure:**
+   ```bash
+   git clone <repository-url>
+   cd news-bot
+   cp .env.example .env
+   nano .env  # Configure with production values
+   ```
+
+4. **Start Services:**
+   ```bash
+   docker compose up -d
+   ```
+
+### SSL/HTTPS with Let's Encrypt
+
+For production, add SSL by modifying `nginx/nginx.conf`:
+
+```nginx
+# Add to http block
+server {
+    listen 80;
+    server_name yourdomain.com;
+    return 301 https://$server_name$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name yourdomain.com;
+
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # ... rest of config
+}
 ```
 
-### Docker Image Features
+Generate certificates with certbot:
 
-- **Multi-stage build**: Minimal final image (~150MB)
-- **Non-root user**: Runs as `appuser` (UID 1000) for security
-- **Health checks**: Built-in health check endpoint
-- **No dev dependencies**: Production-only packages
+```bash
+# Install certbot
+apt install certbot
 
-### Production Docker Compose
+# Generate certificate
+certbot certonly --standalone -d yourdomain.com
 
-For production, consider:
+# Auto-renewal cron
+echo "0 0 * * * certbot renew --quiet" | crontab -
+```
 
-1. **External database**: Use managed PostgreSQL (DigitalOcean, AWS RDS, etc.)
-2. **Secrets management**: Use Docker secrets or external vault
-3. **Reverse proxy**: Add nginx/traefik for TLS termination
-4. **Logging**: Configure log aggregation (ELK, Loki, etc.)
+### Resource Limits
 
-Example production override:
+For production, add resource limits to `docker-compose.yml`:
 
 ```yaml
-# docker-compose.prod.yml
-version: '3.8'
 services:
   api:
-    image: ghcr.io/<username>/newsdigest-api:latest
-    environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - ENVIRONMENT=production
     deploy:
-      replicas: 2
       resources:
         limits:
           cpus: '0.5'
           memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
 ```
 
 ---
 
 ## Health Checks
 
-The API provides health check endpoints for monitoring and orchestration:
-
 ### Endpoints
 
-| Endpoint                | Description                   |
-| ----------------------- | ----------------------------- |
-| `GET /health`           | Basic liveness check          |
-| `GET /health/db`        | Database connectivity check   |
-| `GET /health/scheduler` | Scheduler status (if enabled) |
+| Endpoint                | Description           |
+| ----------------------- | --------------------- |
+| `GET /health`           | Basic liveness check  |
+| `GET /health/db`        | Database connectivity |
+| `GET /health/scheduler` | Scheduler status      |
+| `GET /health/ready`     | Full readiness check  |
 
-### Response Examples
-
-**Basic Health Check:**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**Database Health Check:**
-```json
-{
-  "status": "healthy",
-  "database": "connected",
-  "latency_ms": 2.5
-}
-```
-
-**Scheduler Health Check:**
-```json
-{
-  "status": "healthy",
-  "scheduler": "running",
-  "jobs": ["generate_daily_digests", "cleanup_old_articles"],
-  "next_run_times": {
-    "generate_daily_digests": "2024-01-16T06:00:00Z"
-  }
-}
-```
-
-### Using Health Checks
-
-**Docker Compose:**
-```yaml
-healthcheck:
-  test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-  interval: 30s
-  timeout: 10s
-  retries: 3
-```
-
-**Kubernetes:**
-```yaml
-livenessProbe:
-  httpGet:
-    path: /health
-    port: 8000
-  initialDelaySeconds: 10
-  periodSeconds: 30
-
-readinessProbe:
-  httpGet:
-    path: /health/db
-    port: 8000
-  initialDelaySeconds: 5
-  periodSeconds: 10
-```
-
----
-
-## Monitoring and Observability
-
-### Structured Logging
-
-All logs are output in JSON format for easy parsing:
-
-```json
-{
-  "timestamp": "2024-01-15T10:30:00.123456Z",
-  "level": "INFO",
-  "message": "Request completed",
-  "logger": "uvicorn.access",
-  "request_id": "550e8400-e29b-41d4-a716-446655440000",
-  "request_path": "/api/v1/digests",
-  "client_ip": "192.168.1.1"
-}
-```
-
-### Request Tracing
-
-Every request is assigned a unique `request_id` (UUID) that:
-- Is included in all log entries for that request
-- Can be used to trace requests across services
-- Is available via the `X-Request-ID` response header
-
-### Log Aggregation
-
-For production, configure log forwarding:
-
-**Docker logging driver:**
-```yaml
-services:
-  api:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-```
-
-**Or forward to external service:**
-```yaml
-services:
-  api:
-    logging:
-      driver: "fluentd"
-      options:
-        fluentd-address: "localhost:24224"
-```
-
----
-
-## CI/CD Pipeline
-
-### GitHub Actions Workflow
-
-The project includes a CI/CD pipeline (`.github/workflows/ci.yml`) that:
-
-1. **Test Job:**
-   - Runs on every push and PR
-   - Sets up Python 3.12
-   - Installs dependencies
-   - Runs pytest with coverage
-   - Uploads coverage report as artifact
-
-2. **Lint Job:**
-   - Runs ruff for code linting
-   - Runs in parallel with tests
-
-3. **Build Job:**
-   - Runs on main branch only
-   - Requires tests and lint to pass
-   - Builds Docker image
-   - Pushes to GitHub Container Registry
-   - Tags: `latest` and commit SHA
-
-4. **Deploy Job:**
-   - Runs after successful build
-   - Deploys to production (DigitalOcean)
-
-### Required Secrets
-
-Configure these in GitHub repository settings:
-
-| Secret                      | Description                         |
-| --------------------------- | ----------------------------------- |
-| `GHCR_TOKEN`                | GitHub token for container registry |
-| `DIGITALOCEAN_ACCESS_TOKEN` | DigitalOcean API token              |
-
-### Manual Deployment
-
-To deploy manually from the CI/CD image:
+### Example Responses
 
 ```bash
-# Pull latest image
-docker pull ghcr.io/<username>/newsdigest-api:latest
+# Basic health check
+curl http://localhost/health
+# {"status": "healthy", "app": "NewsDigestAPI", "version": "1.0.0"}
 
-# Deploy with docker compose
-docker compose -f docker-compose.prod.yml up -d
+# Database health
+curl http://localhost/health/db
+# {"status": "ok", "latency_ms": 1.23}
+
+# Scheduler status
+curl http://localhost/health/scheduler
+# {"enabled": true, "running": true, "jobs": [...], "job_count": 1}
 ```
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
-
-**Container fails to start:**
-```bash
-# Check logs
-docker compose logs api
-
-# Common causes:
-# - Missing environment variables
-# - Database not ready
-# - Port already in use
-```
-
-**Database connection errors:**
-```bash
-# Verify database is running
-docker compose ps db
-
-# Check database health
-docker compose exec db pg_isready
-
-# Verify connection string
-docker compose exec api python -c "from src.config import settings; print(settings.database_url)"
-```
-
-**Scheduler not running:**
-```bash
-# Check worker logs
-docker compose logs worker
-
-# Verify SCHEDULER_ENABLED is set
-docker compose exec worker env | grep SCHEDULER
-
-# Check scheduler health endpoint
-curl http://localhost:8000/health/scheduler
-```
-
-**Permission errors (non-root user):**
-```bash
-# If volume permissions fail, fix ownership
-sudo chown -R 1000:1000 ./data
-
-# Or run container as root (not recommended)
-docker compose run --user root api bash
-```
-
-### Debug Mode
-
-Enable debug logging:
+### Container Issues
 
 ```bash
-# Set log level
-export LOG_LEVEL=DEBUG
-docker compose up -d
+# Check container status
+docker compose ps
 
-# Or in docker-compose.yml
-environment:
-  - LOG_LEVEL=DEBUG
+# View logs
+docker compose logs -f api
+docker compose logs -f frontend
+docker compose logs -f nginx
+
+# Restart a service
+docker compose restart api
+
+# Rebuild from scratch
+docker compose down -v
+docker compose up --build
 ```
 
-### Getting Help
+### Common Problems
 
-- Check the API documentation at `/docs`
-- Review logs with `docker compose logs -f`
-- Run health checks to identify issues
-- Check GitHub Issues for known problems
+**Port already in use:**
+```bash
+# Check what's using port 80
+sudo lsof -i :80
+
+# Stop conflicting service or change port in docker-compose.yml
+```
+
+**Database connection failed:**
+```bash
+# Check database is healthy
+docker compose exec db pg_isready -U newsdigest
+
+# View database logs
+docker compose logs db
+```
+
+**Frontend not loading:**
+```bash
+# Check nginx logs
+docker compose logs nginx
+
+# Verify frontend build
+docker compose logs frontend | grep -i error
+```
+
+**API returns 502:**
+```bash
+# Check API is running
+docker compose ps api
+
+# Check API health
+docker compose exec api curl -s localhost:8000/health
+```
+
+### Reset Everything
+
+```bash
+# Stop and remove all containers, volumes, and networks
+docker compose down -v --remove-orphans
+
+# Remove all images
+docker compose down --rmi all
+
+# Fresh start
+docker compose up --build
+```
+
+---
+
+## Useful Commands
+
+```bash
+# Execute command in container
+docker compose exec api bash
+docker compose exec db psql -U newsdigest -d newsdigest_db
+
+# Run migrations
+docker compose exec api alembic upgrade head
+
+# Create new migration
+docker compose exec api alembic revision --autogenerate -m "description"
+
+# View database
+docker compose exec db psql -U newsdigest -d newsdigest_db -c "\dt"
+
+# Copy logs
+docker compose logs api > api.log
+```

@@ -94,3 +94,168 @@ followed by the file content.
 No explanations. No commentary. No backticks inside file contents.
 
 Begin now.
+
+---
+
+# Fixing application local hosting prompt
+
+---
+
+You are Claude Opus 4.5.
+Your task is to act as the principal engineer responsible for fully building, validating, and maintaining the NewsDigest project, which consists of:
+
+1. A backend (FastAPI + Postgres + async SQLAlchemy + Redis optional + scheduler + workers)
+2. A frontend (Next.js 14 + TypeScript + Tailwind + shadcn/ui)
+3. A full Dockerized local environment (backend, frontend, Postgres, pgAdmin)
+4. A unified deployment model via Docker Compose + Nginx reverse proxy on a single DigitalOcean droplet
+5. Documentation, correctness, coverage, observability, and developer experience
+
+Your outputs must be complete, correct, production-grade, and immediately runnable.
+
+====================================================================
+PROJECT CONTEXT
+====================================================================
+
+This project is NOT a commercial SaaS.
+It is a personal, portfolio-grade application that I will demo to others.
+Your job is to design and implement everything with strong engineering rigor but without unnecessary enterprise complexity.
+
+====================================================================
+BACKEND REQUIREMENTS
+====================================================================
+
+FastAPI backend with:
+
+- async SQLAlchemy + Postgres 16
+- Alembic migrations
+- JWT Auth (HS256) stored on the frontend in localStorage
+- NewsAPI + OpenAI integration
+- request-ID middleware
+- structured JSON logging
+- rate limiting
+- observability endpoints: /health, /health/db, /health/scheduler
+- scheduler for digest generation
+- worker for heavy async tasks
+- complete test suite
+- ASGI-compatible lazy loader fixed to:
+
+class _LazyApp:
+    _real_app = None
+
+    def _get_app(self):
+        if self._real_app is None:
+            self._real_app = _create_app()
+        return self._real_app
+
+    def __getattr__(self, name):
+        return getattr(self._get_app(), name)
+
+    async def __call__(self, scope, receive, send):
+        app = self._get_app()
+        return await app(scope, receive, send)
+
+Backend must run inside Docker Compose and pass healthchecks.
+
+====================================================================
+FRONTEND REQUIREMENTS
+====================================================================
+
+Stack:
+Next.js 14 (App Router)
+TypeScript
+Tailwind CSS
+shadcn/ui
+JWT stored in localStorage
+React Context for global auth state
+Hybrid data fetching model
+Route structure: OPTION B (nested routes)
+Build as fully static export via "next export"
+Serve static assets through Nginx inside the same droplet
+
+Frontend pages:
+/
+login
+register
+dashboard
+digest
+digest/[id]
+interests
+settings
+
+Protected pages redirect automatically when JWT is missing.
+
+====================================================================
+CONTAINERIZATION REQUIREMENTS
+====================================================================
+
+Docker Compose environment containing:
+api
+frontend
+db (Postgres)
+pgadmin (exposed at localhost:5050)
+nginx proxy
+internal network "news-digest-network"
+
+Frontend served as static files by Nginx.
+Backend on port 8000.
+Nginx reverse proxy routes:
+    /api → FastAPI backend
+    / → Next.js exported static assets
+
+====================================================================
+DELIVERABLES CLAUDE MUST GENERATE
+====================================================================
+
+Claude must generate full, complete file contents for:
+
+BACKEND:
+- Entire FastAPI project structure
+- All routers, schemas, services, models, workers
+- Fixed main.py with ASGI-compatible lazy loader
+- Alembic setup
+- Dockerfile
+- docker-compose.yml (including all services)
+- docker-compose.override.yml
+- logging config
+- environment variables
+- tests
+
+FRONTEND:
+- Complete Next.js 14 + TypeScript project
+- App routes defined in OPTION B structure
+- Tailwind + shadcn configuration
+- AuthContext using localStorage
+- API client abstraction
+- Dockerfile
+- Export configuration
+
+INFRA:
+- Nginx reverse proxy configuration
+- pgAdmin configuration
+- Networking and volumes
+
+DOCUMENTATION:
+- README.md
+- deployment.md
+- local development instructions
+
+====================================================================
+CLAUDE'S OPERATING RULES
+====================================================================
+
+1. Always output complete files with correct paths.
+2. Ensure all services work with "docker compose up --build".
+3. Validate import paths, environment variables, and health checks.
+4. Maintain production quality but avoid overengineering.
+5. Check ASGI signatures, circular imports, and connection strings.
+6. When providing improvements, keep them minimal and practical.
+
+====================================================================
+FIRST TASK FOR CLAUDE
+====================================================================
+
+Your first task:
+
+Generate the complete, final, runnable codebase for both the backend and frontend, including Docker, Nginx, pgAdmin, and documentation, according to all specifications above.
+
+All output must be complete file contents, not fragments.
