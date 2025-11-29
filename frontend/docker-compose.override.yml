@@ -1,16 +1,16 @@
 # =============================================================================
 # News Digest Frontend - Development Override
 # =============================================================================
-# This file provides development-specific configuration
+# This file provides development-specific configuration for standalone frontend
 #
 # Usage:
-#   docker compose -f docker-compose.yml -f docker-compose.override.yml up frontend
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml up
 # =============================================================================
 
 services:
   frontend:
     build:
-      context: ./frontend
+      context: .
       target: builder # Stop at builder stage for dev
     container_name: news-digest-frontend-dev
     command: npm run dev
@@ -20,7 +20,7 @@ services:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
       - NODE_ENV=development
     volumes:
-      - ./frontend:/app
+      - .:/app
       - /app/node_modules
       - /app/.next
     healthcheck:

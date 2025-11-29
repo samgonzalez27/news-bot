@@ -11,6 +11,55 @@
 
 services:
   # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy - Routes traffic to frontend and backend
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: news-digest-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - news-digest-network
+
+  # ---------------------------------------------------------------------------
+  # Frontend Service - Next.js Static Site (Nginx)
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    container_name: news-digest-frontend
+    restart: unless-stopped
+    expose:
+      - "80"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - news-digest-network
+
+  # ---------------------------------------------------------------------------
   # API Service - FastAPI Application
   # ---------------------------------------------------------------------------
   api:
@@ -19,8 +68,8 @@ services:
       dockerfile: Dockerfile
     container_name: news-digest-api
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
       # Database connection (uses service name 'db' as host)
       - DATABASE_URL=postgresql+asyncpg://newsdigest:${POSTGRES_PASSWORD:-newsdigest_secret}@db:5432/newsdigest_db
@@ -33,7 +82,7 @@ services:
       - NEWSAPI_KEY=${NEWSAPI_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       # Optional settings
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://localhost:3000,http://localhost:80}
       - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
       - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
       - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}
@@ -78,41 +127,35 @@ services:
     #   - "5432:5432"
 
     # ---------------------------------------------------------------------------
-    # Scheduler Service (Optional - for externalized scheduler)
+    # pgAdmin Service - Database Administration
     # ---------------------------------------------------------------------------
-    # Uncomment this service if you want to run the scheduler separately
-    # from the main API. This is useful for horizontal scaling.
-    #
-    # scheduler:
-    #   build:
-    #     context: .
-    #     dockerfile: Dockerfile
-    #   container_name: news-digest-scheduler
-    #   restart: unless-stopped
-    #   command: ["python", "-m", "src.scheduler_worker"]
-    #   environment:
-    #     - DATABASE_URL=postgresql+asyncpg://newsdigest:${POSTGRES_PASSWORD:-newsdigest_secret}@db:5432/newsdigest_db
-    #     - APP_ENV=${APP_ENV:-production}
-    #     - LOG_LEVEL=${LOG_LEVEL:-INFO}
-    #     - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-    #     - NEWSAPI_KEY=${NEWSAPI_KEY}
-    #     - OPENAI_API_KEY=${OPENAI_API_KEY}
-    #     - SCHEDULER_ENABLED=true
-    #   depends_on:
-    #     db:
-    #       condition: service_healthy
-    #   volumes:
-    #     - app-logs:/var/log/news-digest
-    #   networks:
-    #     - news-digest-network
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: news-digest-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@newsdigest.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
+      - PGADMIN_CONFIG_SERVER_MODE=False
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - news-digest-network
 
-    # -----------------------------------------------------------------------------
-    # Volumes - Persistent storage
-    # -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Volumes - Persistent storage
+# -----------------------------------------------------------------------------
 volumes:
   postgres-data:
     driver: local
   app-logs:
+    driver: local
+  pgadmin-data:
     driver: local
 
 # -----------------------------------------------------------------------------

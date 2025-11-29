@@ -1,11 +1,11 @@
 # =============================================================================
-# News Digest - Full Stack Docker Compose (Frontend + Backend)
+# News Digest Frontend - Standalone Docker Compose
 # =============================================================================
-# This file extends the existing backend docker-compose.yml to include frontend
+# Use this for frontend-only development when backend is running separately
 #
 # Usage:
-#   Development: docker compose up -d
-#   Production:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   Start: docker compose up -d
+#   Stop:  docker compose down
 # =============================================================================
 
 services:
@@ -14,93 +14,23 @@ services:
   # ---------------------------------------------------------------------------
   frontend:
     build:
-      context: ./frontend
+      context: .
       dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-    container_name: news-digest-frontend
+    container_name: news-digest-frontend-standalone
     restart: unless-stopped
     ports:
       - "3000:80"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000}
-    depends_on:
-      - api
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     healthcheck:
       test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/" ]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-    networks:
-      - news-digest-network
-
-  # ---------------------------------------------------------------------------
-  # API Service - FastAPI Application (from existing config)
-  # ---------------------------------------------------------------------------
-  api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: news-digest-api
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://newsdigest:${POSTGRES_PASSWORD:-newsdigest_secret}@db:5432/newsdigest_db
-      - APP_ENV=${APP_ENV:-production}
-      - DEBUG=${DEBUG:-false}
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - NEWSAPI_KEY=${NEWSAPI_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,http://frontend:80}
-      - SCHEDULER_ENABLED=${SCHEDULER_ENABLED:-true}
-      - RATE_LIMIT_PER_MINUTE=${RATE_LIMIT_PER_MINUTE:-60}
-      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    volumes:
-      - app-logs:/var/log/news-digest
-    networks:
-      - news-digest-network
-
-  # ---------------------------------------------------------------------------
-  # Database Service - PostgreSQL
-  # ---------------------------------------------------------------------------
-  db:
-    image: postgres:16-alpine
-    container_name: news-digest-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=newsdigest
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-newsdigest_secret}
-      - POSTGRES_DB=newsdigest_db
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U newsdigest -d newsdigest_db" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-    networks:
-      - news-digest-network
-
-volumes:
-  postgres-data:
-    driver: local
-  app-logs:
-    driver: local
 
 networks:
-  news-digest-network:
-    driver: bridge
+  default:
+    name: news-digest-frontend

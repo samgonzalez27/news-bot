@@ -12,8 +12,9 @@ RUN npm ci --legacy-peer-deps
 COPY . .
 
 # Set build-time environment variables
+# Empty NEXT_PUBLIC_API_URL means use relative paths (proxied via nginx)
 ARG NEXT_PUBLIC_API_URL
-ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
 
 # Build and export static files
 RUN npm run build
@@ -29,6 +30,9 @@ COPY --from=builder /app/out /usr/share/nginx/html
 
 # Copy nginx configuration
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
+
+# Create custom error pages
+RUN echo '<!DOCTYPE html><html><head><title>Error</title></head><body><h1>Service Temporarily Unavailable</h1></body></html>' > /usr/share/nginx/html/50x.html
 
 # Set correct permissions
 RUN chown -R nginx:nginx /usr/share/nginx/html && \
