@@ -24,9 +24,11 @@ import {
     BookOpen,
 } from 'lucide-react';
 
-export default function DigestDetailPage() {
+export default function DigestDetailClient() {
     const params = useParams();
-    const id = params?.id as string;
+    // With catch-all route [...id], params.id is an array
+    const idArray = params?.id as string[] | undefined;
+    const id = idArray?.[0];
     const { isLoading: authLoading } = useRequireAuth();
     const { toast } = useToast();
 
@@ -41,6 +43,7 @@ export default function DigestDetailPage() {
                 const data = await getDigest(id);
                 setDigest(data);
             } catch (error) {
+                console.error('Failed to fetch digest:', error);
                 toast({
                     title: 'Failed to load digest',
                     description: 'Please try again later.',
@@ -69,7 +72,7 @@ export default function DigestDetailPage() {
                     <CardContent className="py-12 text-center">
                         <h2 className="text-lg font-semibold mb-2">Digest not found</h2>
                         <p className="text-muted-foreground mb-4">
-                            This digest may have been deleted or doesn't exist.
+                            This digest may have been deleted or doesn&apos;t exist.
                         </p>
                         <Link href="/digest">
                             <Button>Back to Digests</Button>
@@ -182,7 +185,7 @@ export default function DigestDetailPage() {
                         How This Affects You
                     </CardTitle>
                     <CardDescription>
-                        Key takeaways from today's news based on your interests
+                        Key takeaways from today&apos;s news based on your interests
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -208,7 +211,7 @@ export default function DigestDetailPage() {
             {/* Sources */}
             {digest.headlines_used.length > 0 && (
                 <div>
-                    <h2 className="text-xl font-semibold mb-4">Sources & References</h2>
+                    <h2 className="text-xl font-semibold mb-4">Sources &amp; References</h2>
                     <div className="grid gap-3 md:grid-cols-2">
                         {digest.headlines_used.map((headline, idx) => (
                             <a

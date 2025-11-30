@@ -11,51 +11,58 @@
 
 services:
   # ---------------------------------------------------------------------------
-  # Nginx Reverse Proxy - Routes traffic to frontend and backend
+  # Database Service - PostgreSQL (starts first)
   # ---------------------------------------------------------------------------
-  nginx:
-    image: nginx:alpine
-    container_name: news-digest-nginx
+  db:
+    image: postgres:16-alpine
+    container_name: news-digest-db
     restart: unless-stopped
-    ports:
-      - "80:80"
+    environment:
+      - POSTGRES_USER=newsdigest
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-newsdigest_secret}
+      - POSTGRES_DB=newsdigest_db
+      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      api:
-        condition: service_healthy
-      frontend:
-        condition: service_healthy
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: [ "CMD-SHELL", "pg_isready -U newsdigest -d newsdigest_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
       start_period: 10s
     networks:
       - news-digest-network
 
   # ---------------------------------------------------------------------------
-  # Frontend Service - Next.js Static Site (Nginx)
+  # pgAdmin Service - Database Administration (optional, for development)
   # ---------------------------------------------------------------------------
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    container_name: news-digest-frontend
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: news-digest-pgadmin
     restart: unless-stopped
-    expose:
-      - "80"
+    ports:
+      - "5050:80"
     environment:
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
+      # Use a real-looking email format to pass pgAdmin's stricter validation
+      # The latest pgAdmin4 rejects .local TLD as it's a reserved domain
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      # Disable email deliverability check (desktop mode)
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/" ]
+      test: [ "CMD", "wget", "-O", "-", "http://localhost:80/misc/ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 30s
     networks:
       - news-digest-network
 
@@ -68,8 +75,8 @@ services:
       dockerfile: Dockerfile
     container_name: news-digest-api
     restart: unless-stopped
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     environment:
       # Database connection (uses service name 'db' as host)
       - DATABASE_URL=postgresql+asyncpg://newsdigest:${POSTGRES_PASSWORD:-newsdigest_secret}@db:5432/newsdigest_db
@@ -94,56 +101,58 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
     volumes:
       - app-logs:/var/log/news-digest
     networks:
       - news-digest-network
 
   # ---------------------------------------------------------------------------
-  # Database Service - PostgreSQL
+  # Frontend Service - Next.js Static Site (Nginx)
   # ---------------------------------------------------------------------------
-  db:
-    image: postgres:16-alpine
-    container_name: news-digest-db
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+    container_name: news-digest-frontend
     restart: unless-stopped
+    expose:
+      - "80"
     environment:
-      - POSTGRES_USER=newsdigest
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-newsdigest_secret}
-      - POSTGRES_DB=newsdigest_db
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-}
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U newsdigest -d newsdigest_db" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
       start_period: 10s
     networks:
       - news-digest-network
-    # Uncomment to expose PostgreSQL port for debugging
-    # ports:
-    #   - "5432:5432"
 
-    # ---------------------------------------------------------------------------
-    # pgAdmin Service - Database Administration
-    # ---------------------------------------------------------------------------
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: news-digest-pgadmin
+  # ---------------------------------------------------------------------------
+  # Nginx Reverse Proxy - Routes traffic to frontend and backend
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: news-digest-nginx
     restart: unless-stopped
     ports:
-      - "5050:80"
-    environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@newsdigest.local}
-      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-admin}
-      - PGADMIN_CONFIG_SERVER_MODE=False
+      - "80:80"
     volumes:
-      - pgadmin-data:/var/lib/pgadmin
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      db:
+      api:
         condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     networks:
       - news-digest-network
 
