@@ -464,3 +464,114 @@ Produce your full output organized as follows:
 
 The content must be ready for direct copy/paste into the repository.
 
+---
+
+# Achieving 100% Coverage in the Testing Suite
+
+Your task is to fix the full FastAPI test suite, eliminate all async warnings, and raise total coverage to 100%. Do not add unrelated options. Do not ask clarifying questions. Assume the backend containers build and run successfully.
+
+---
+
+## Existing Problems You Must Solve
+
+- Multiple "coroutine was never awaited" warnings caused by using AsyncMock on synchronous SQLAlchemy Session methods.
+- Several router modules are below required coverage (40–80%).
+- Missing branch coverage in:
+  - config.py
+  - logging_config.py
+  - main.py
+  - rate_limiter.py
+  - database.py
+  - Routers: auth, users, interests, digests, health
+- Missing exception-path tests:
+  - External API failures (OpenAI + NewsAPI mocked)
+  - Database operational errors
+  - Authentication/authorization flows
+  - Validation errors
+  - Scheduler job failures
+- Missing verification of:
+  - Logging side effects
+  - Response model correctness
+  - Rate limiter edge cases
+- All external integrations must be mocked and deterministic.
+
+---
+
+## High-Level Requirements (use exactly these)
+
+- Replace all incorrect AsyncMock usage with MagicMock for synchronous SQLAlchemy calls (Session.add, Session.commit, etc.).
+- Use AsyncMock only for true async functions.
+- Achieve 100% coverage for:
+  - All routers
+  - All services
+  - Exception handlers
+  - Rate limiter middleware
+  - Scheduler jobs
+  - Config and logging
+- For every route, create tests for:
+  - Success
+  - Validation failure
+  - Missing auth
+  - Wrong auth
+  - Not found
+  - Conflict
+  - Service-layer exceptions
+  - External API exceptions
+  - Response model schema validation
+- Mock the following:
+  - openai_service.generate_digest
+  - news_service.fetch_articles
+  - Any outbound HTTP requests
+  - SQLAlchemy session failures
+  - Scheduler job failures
+- Rate limiter tests must include:
+  - Allowed request
+  - Blocked request
+  - Bucket reset behavior
+  - Burst edge case
+- Scheduler tests must include:
+  - Successful job execution
+  - Misfire
+  - Raised exception
+  - Logging asserts
+
+---
+
+## Output You Must Generate
+
+### 1. New and updated test suites
+Provide all missing test files and updated tests to remove warnings and close coverage gaps.
+
+### 2. Correct mocking strategy
+Document exactly which items use MagicMock vs AsyncMock and how patches should be applied.
+
+### 3. Detailed explanations
+Explain what each new test covers and why the async warnings disappear.
+
+### 4. Final deliverable
+A complete, corrected test suite with:
+- Full 100% coverage
+- Zero async warnings
+- Deterministic, isolated tests
+- No external API calls
+- Validated response models
+- Full router/service/exception/rate-limit/scheduler coverage
+
+---
+
+## Environment Assumptions
+
+- Python 3.11
+- FastAPI
+- SQLAlchemy ORM
+- Pytest + pytest-asyncio
+- HTTPX AsyncClient
+- Coverage run with: pytest --disable-warnings --maxfail=1 --cov=app --cov-report=term-missing
+- Test DB + dependency overrides already functional
+- No network requests allowed
+
+---
+
+## Your Task
+
+Generate the final corrected test suite, close all remaining branches, fix all async warnings, and produce a fully green 100% coverage run.
