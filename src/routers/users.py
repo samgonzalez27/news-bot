@@ -128,20 +128,32 @@ async def update_user_interests(
 ) -> UserResponse:
     """Update the current user's subscribed interests."""
     interest_service = InterestService(db)
-    await interest_service.update_user_interests(
+    updated_interests = await interest_service.update_user_interests(
         user_id=current_user.id,
         interest_slugs=interest_update.interest_slugs,
     )
 
-    # Refresh user to get updated interests
-    user_service = UserService(db)
-    updated_user = await user_service.get_by_id(current_user.id)
+    # Build response with updated interests directly from the service result
+    # This avoids SQLAlchemy session caching issues
+    from src.schemas.user import InterestSummary
+    
+    response_data = {
+        "id": current_user.id,
+        "email": current_user.email,
+        "full_name": current_user.full_name,
+        "preferred_time": current_user.preferred_time,
+        "timezone": current_user.timezone,
+        "is_active": current_user.is_active,
+        "interests": [InterestSummary.model_validate(i) for i in updated_interests],
+        "created_at": current_user.created_at,
+        "updated_at": current_user.updated_at,
+    }
 
     logger.info(
         f"User {current_user.email} updated interests via /users/me/interests"
     )
 
-    return UserResponse.model_validate(updated_user)
+    return UserResponse(**response_data)
 
 
 @router.delete(
