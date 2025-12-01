@@ -40,7 +40,7 @@ class InterestService:
         """
         stmt = select(Interest).order_by(Interest.display_order)
         if active_only:
-            stmt = stmt.where(Interest.is_active == True)
+            stmt = stmt.where(Interest.is_active.is_(True))
 
         result = await self.db.execute(stmt)
         return list(result.scalars().all())

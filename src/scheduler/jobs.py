@@ -3,7 +3,7 @@ Scheduled job definitions for digest generation.
 """
 
 import asyncio
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List
 from uuid import UUID
 
@@ -50,7 +50,7 @@ async def get_users_due_for_digest(
         # Query needs to handle wrap-around
         stmt = (
             select(User)
-            .where(User.is_active == True)
+            .where(User.is_active.is_(True))
             .where(
                 (User.preferred_time >= window_start) |
                 (User.preferred_time < window_end)
@@ -59,7 +59,7 @@ async def get_users_due_for_digest(
     else:
         stmt = (
             select(User)
-            .where(User.is_active == True)
+            .where(User.is_active.is_(True))
             .where(User.preferred_time >= window_start)
             .where(User.preferred_time < window_end)
         )
