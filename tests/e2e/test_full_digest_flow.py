@@ -5,8 +5,6 @@ These tests simulate real user scenarios from registration
 through digest generation and consumption.
 """
 
-from unittest.mock import AsyncMock, patch, MagicMock
-import pytest
 from fastapi import status
 
 

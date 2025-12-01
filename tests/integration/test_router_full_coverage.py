@@ -16,10 +16,9 @@ from uuid import uuid4
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import delete
 
 from src.models.user import User, UserInterest
-from src.models.interest import Interest
 from src.models.digest import Digest, DigestStatus
 from src.services.auth_service import AuthService
 

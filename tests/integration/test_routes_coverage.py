@@ -5,7 +5,7 @@ Tests routes that were missing coverage in the original test suite.
 """
 
 from datetime import date, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest

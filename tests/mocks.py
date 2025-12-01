@@ -12,7 +12,7 @@ Provides reusable mocks, factories, and helpers for:
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import httpx
@@ -217,7 +217,7 @@ def create_tampered_token(user_id: Optional[UUID] = None) -> str:
     Returns:
         Tampered JWT token.
     """
-    settings = get_settings()
+    get_settings()
     if user_id is None:
         user_id = uuid4()
     

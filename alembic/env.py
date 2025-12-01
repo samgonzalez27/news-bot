@@ -19,7 +19,7 @@ from src.config import get_settings
 from src.database import Base
 
 # Import all models to ensure they're registered with Base.metadata
-from src.models import User, UserInterest, Interest, Digest
+from src.models import User, UserInterest, Interest, Digest  # noqa: F401
 
 # this is the Alembic Config object
 config = context.config

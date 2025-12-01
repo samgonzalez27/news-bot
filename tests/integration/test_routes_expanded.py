@@ -13,12 +13,8 @@ Coverage improvements:
 """
 
 import pytest
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, timedelta
 from uuid import uuid4
-from unittest.mock import AsyncMock, MagicMock, patch
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-from httpx import AsyncClient
 
 from src.middleware.rate_limiter import RateLimitMiddleware
 

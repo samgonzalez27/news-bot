@@ -3,9 +3,7 @@ Integration tests for digest routes.
 """
 
 from datetime import date, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
 
-import pytest
 from fastapi import status
 
 

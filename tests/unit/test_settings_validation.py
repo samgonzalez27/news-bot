@@ -12,9 +12,6 @@ Note: Testing required fields without .env is complex since Pydantic Settings
 always reads from .env. We focus on parsing behavior and property logic.
 """
 
-import pytest
-import os
-from unittest.mock import patch
 
 from src.config import Settings, get_settings
 

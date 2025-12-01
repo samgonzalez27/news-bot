@@ -2,8 +2,7 @@
 Unit tests for exceptions module.
 """
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import MagicMock
 
 from src.exceptions import (
     NewsDigestException,

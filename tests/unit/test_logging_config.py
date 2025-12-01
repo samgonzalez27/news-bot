@@ -2,11 +2,10 @@
 Unit tests for logging_config module.
 """
 
-import pytest
 import logging
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from src.logging_config import setup_logging, get_logger
 

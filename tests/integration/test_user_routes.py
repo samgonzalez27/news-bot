@@ -2,7 +2,6 @@
 Integration tests for user routes.
 """
 
-import pytest
 from fastapi import status
 
 

@@ -16,14 +16,12 @@ Coverage improvements:
 import pytest
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
-from unittest.mock import patch, MagicMock
-from jose import jwt, JWTError
+from jose import jwt
 
 from src.services.auth_service import AuthService
 from src.exceptions import (
     TokenExpiredError,
     InvalidTokenError,
-    InvalidCredentialsError,
 )
 from tests.mocks import (
     create_valid_token,
@@ -236,7 +234,7 @@ class TestPasswordHashing:
         service = AuthService()
         hashed = service.hash_password(password)
         
-        assert service.verify_password(password, hashed) == True
+        assert service.verify_password(password, hashed)
     
     def test_verify_incorrect_password(self):
         """Should reject incorrect password."""
@@ -246,7 +244,7 @@ class TestPasswordHashing:
         service = AuthService()
         hashed = service.hash_password(password)
         
-        assert service.verify_password(wrong_password, hashed) == False
+        assert not service.verify_password(wrong_password, hashed)
     
     def test_hash_empty_password(self):
         """Should handle empty password."""
@@ -255,7 +253,7 @@ class TestPasswordHashing:
         # Empty password should still be hashable
         hashed = service.hash_password("")
         assert hashed is not None
-        assert service.verify_password("", hashed) == True
+        assert service.verify_password("", hashed)
     
     def test_hash_very_long_password(self):
         """Should handle very long passwords."""
@@ -264,7 +262,7 @@ class TestPasswordHashing:
         service = AuthService()
         hashed = service.hash_password(long_password)
         
-        assert service.verify_password(long_password, hashed) == True
+        assert service.verify_password(long_password, hashed)
     
     def test_hash_unicode_password(self):
         """Should handle unicode passwords."""
@@ -273,7 +271,7 @@ class TestPasswordHashing:
         service = AuthService()
         hashed = service.hash_password(unicode_password)
         
-        assert service.verify_password(unicode_password, hashed) == True
+        assert service.verify_password(unicode_password, hashed)
     
     def test_hash_special_characters(self):
         """Should handle special characters in password."""
@@ -282,7 +280,7 @@ class TestPasswordHashing:
         service = AuthService()
         hashed = service.hash_password(special_password)
         
-        assert service.verify_password(special_password, hashed) == True
+        assert service.verify_password(special_password, hashed)
     
     def test_different_hashes_for_same_password(self):
         """Same password should produce different hashes (due to salt)."""
@@ -296,8 +294,8 @@ class TestPasswordHashing:
         assert hash1 != hash2
         
         # But both should verify
-        assert service.verify_password(password, hash1) == True
-        assert service.verify_password(password, hash2) == True
+        assert service.verify_password(password, hash1)
+        assert service.verify_password(password, hash2)
     
     def test_verify_against_wrong_hash_format(self):
         """Should handle verification against invalid hash."""
@@ -314,7 +312,7 @@ class TestPasswordHashing:
         for invalid_hash in invalid_hashes:
             result = service.verify_password("test", invalid_hash)
             # Should return False, not raise
-            assert result == False
+            assert not result
 
 
 class TestGetUserIdFromToken:
@@ -388,7 +386,7 @@ class TestTokenTimingEdgeCases:
         
         # Might be expired or just valid depending on timing
         try:
-            decoded = service.decode_token(token)
+            service.decode_token(token)
             # If decoded, it's at the boundary
         except TokenExpiredError:
             # Expected if past expiration

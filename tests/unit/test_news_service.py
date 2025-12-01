@@ -3,7 +3,6 @@ Unit tests for the news service.
 """
 
 from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
 
 import pytest
 import httpx

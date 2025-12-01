@@ -2,7 +2,6 @@
 Integration tests for authentication routes.
 """
 
-import pytest
 from fastapi import status
 
 

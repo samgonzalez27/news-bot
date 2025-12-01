@@ -5,8 +5,8 @@ Tests the job functions with mocked database sessions.
 """
 
 import pytest
-from datetime import datetime, time, timezone, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from datetime import datetime, time, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 from src.scheduler.jobs import (

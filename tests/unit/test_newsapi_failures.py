@@ -543,13 +543,13 @@ class TestSingletonBehavior:
     async def test_close_news_service_clears_singleton(self):
         """close_news_service should clear the singleton."""
         # Get a service
-        service1 = await get_news_service()
+        await get_news_service()
 
         # Close it
         await close_news_service()
 
         # Get a new one - should be different instance
-        service2 = await get_news_service()
+        await get_news_service()
 
         # Clean up
         await close_news_service()

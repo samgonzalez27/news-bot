@@ -2,7 +2,6 @@
 Integration tests for interest routes.
 """
 
-import pytest
 from fastapi import status
 
 

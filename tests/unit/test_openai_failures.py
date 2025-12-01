@@ -530,17 +530,16 @@ class TestSingletonBehavior:
         from src.services.openai_service import (
             get_openai_service,
             close_openai_service,
-            _openai_service,
         )
 
         # Get a service
-        service1 = await get_openai_service()
+        await get_openai_service()
 
         # Close it
         await close_openai_service()
 
         # Get a new one - should be different instance
-        service2 = await get_openai_service()
+        await get_openai_service()
 
         # Clean up
         await close_openai_service()

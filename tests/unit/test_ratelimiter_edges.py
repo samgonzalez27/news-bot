@@ -5,9 +5,8 @@ Tests boundary conditions, concurrent access, bucket cleanup, and reset function
 Uses the actual RateLimiter API.
 """
 
-import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -276,7 +275,7 @@ class TestRateLimitMiddleware:
         mock_response.headers = {}
         call_next.return_value = mock_response
         
-        response = await middleware.dispatch(request, call_next)
+        await middleware.dispatch(request, call_next)
         call_next.assert_called_once()
 
     @pytest.mark.asyncio
@@ -293,7 +292,7 @@ class TestRateLimitMiddleware:
         mock_response = MagicMock()
         call_next.return_value = mock_response
         
-        response = await middleware.dispatch(request, call_next)
+        await middleware.dispatch(request, call_next)
         call_next.assert_called_once()
 
     @pytest.mark.asyncio
@@ -320,7 +319,7 @@ class TestRateLimitMiddleware:
         mock_response.headers = {}
         call_next.return_value = mock_response
         
-        response = await middleware.dispatch(request, call_next)
+        await middleware.dispatch(request, call_next)
         # Should still work (uses "unknown" as IP)
         call_next.assert_called_once()
 

@@ -18,7 +18,7 @@ import time
 import json
 import logging
 from datetime import datetime, timezone, timedelta, date, time as time_type
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 
@@ -146,7 +146,7 @@ class TestLoggingConfigCoverage:
 
     def test_set_request_id_generates_uuid(self):
         """Test set_request_id generates UUID when not provided."""
-        from src.logging_config import set_request_id, get_request_id
+        from src.logging_config import set_request_id
 
         request_id = set_request_id()
         assert request_id is not None
@@ -337,7 +337,7 @@ class TestDatabaseCoverage:
 
             with patch("src.database.create_async_engine") as mock_create:
                 mock_create.return_value = MagicMock()
-                engine = get_engine()
+                get_engine()
                 
                 mock_create.assert_called_once()
                 call_kwargs = mock_create.call_args[1]
@@ -502,7 +502,7 @@ class TestRateLimiterCoverage:
             for bucket in middleware.default_limiter.buckets.values():
                 bucket.last_refill = time.time() - 7200
 
-            response = await middleware.dispatch(mock_request, call_next)
+            await middleware.dispatch(mock_request, call_next)
             
             # Cleanup should have happened
             assert middleware._last_cleanup > time.time() - 100
@@ -536,7 +536,7 @@ class TestRateLimiterCoverage:
             # Mock AuthService.get_user_id_from_token in the services module
             user_id = uuid4()
             with patch("src.services.auth_service.AuthService.get_user_id_from_token", return_value=user_id):
-                response = await middleware.dispatch(mock_request, call_next)
+                await middleware.dispatch(mock_request, call_next)
 
             # Should use user-based key
             assert f"user:{user_id}" in middleware.default_limiter.buckets
@@ -567,7 +567,7 @@ class TestRateLimiterCoverage:
             mock_app = MagicMock()
             middleware = RateLimitMiddleware(mock_app)
 
-            response = await middleware.dispatch(mock_request, call_next)
+            await middleware.dispatch(mock_request, call_next)
             
             # Should use auth_limiter with stricter limits
             assert "ip:127.0.0.1" in middleware.auth_limiter.buckets
@@ -631,7 +631,7 @@ class TestRateLimiterCoverage:
             mock_app = MagicMock()
             middleware = RateLimitMiddleware(mock_app)
 
-            response = await middleware.dispatch(mock_request, call_next)
+            await middleware.dispatch(mock_request, call_next)
             
             # Should use first IP from X-Forwarded-For
             assert "ip:203.0.113.1" in middleware.default_limiter.buckets
@@ -662,7 +662,7 @@ class TestRateLimiterCoverage:
             mock_app = MagicMock()
             middleware = RateLimitMiddleware(mock_app)
 
-            response = await middleware.dispatch(mock_request, call_next)
+            await middleware.dispatch(mock_request, call_next)
             
             # Should use X-Real-IP
             assert "ip:203.0.113.5" in middleware.default_limiter.buckets
@@ -800,7 +800,7 @@ class TestSchemaValidatorsCoverage:
     def test_user_response_time_formatting(self):
         """Test UserResponse formats time object to string."""
         from src.schemas.user import UserResponse
-        from datetime import time as time_type, datetime, timezone as tz
+        from datetime import timezone as tz
 
         # Mock a user-like object
         user_data = {
@@ -829,7 +829,6 @@ class TestNewsServiceCoverage:
     async def test_fetch_everything_with_default_dates(self):
         """Test _fetch_everything uses default dates."""
         from src.services.news_service import NewsService
-        import httpx
 
         service = NewsService()
         
@@ -906,7 +905,6 @@ class TestNewsServiceCoverage:
     def test_cache_validity_check(self):
         """Test _is_cache_valid method."""
         from src.services.news_service import NewsService, CACHE_TTL_SECONDS
-        from datetime import datetime, timezone
 
         service = NewsService()
 
@@ -961,10 +959,10 @@ class TestMainAppCoverage:
         """Test reset_app clears instance."""
         from src.main import reset_app, get_app
 
-        app1 = get_app()
+        get_app()
         reset_app()
         # get_app should create fresh instance
-        app2 = get_app()
+        get_app()
         
         # Clean up
         reset_app()
@@ -973,7 +971,7 @@ class TestMainAppCoverage:
     async def test_request_id_middleware_generates_id(self):
         """Test RequestIDMiddleware generates request ID."""
         from src.main import RequestIDMiddleware
-        from fastapi import Request, Response
+        from fastapi import Request
 
         middleware = RequestIDMiddleware(MagicMock())
 

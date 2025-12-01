@@ -10,7 +10,6 @@ import pytest
 
 from src.models.digest import Digest, DigestStatus
 from src.services.digest_service import DigestService
-from src.exceptions import NotFoundError
 
 
 class TestDigestService:

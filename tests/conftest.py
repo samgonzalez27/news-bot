@@ -4,7 +4,6 @@ Pytest fixtures and configuration for the News Digest API tests.
 
 import asyncio
 import os
-from datetime import datetime, timezone
 from typing import AsyncGenerator, Generator
 from uuid import uuid4
 
@@ -12,9 +11,7 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Set test environment variables BEFORE any src imports
@@ -27,7 +24,7 @@ os.environ.setdefault("SCHEDULER_ENABLED", "false")
 
 from src.config import Settings, get_settings
 from src.database import Base, get_db, reset_engine
-from src.main import app, _LazyApp
+from src.main import app
 from src.middleware.rate_limiter import RateLimitMiddleware
 from src.models.interest import Interest, PREDEFINED_INTERESTS
 from src.models.user import User

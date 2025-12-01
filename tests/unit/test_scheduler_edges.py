@@ -10,7 +10,7 @@ Coverage improvements:
 """
 
 import pytest
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timezone
 from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -95,7 +95,7 @@ class TestGetUsersDueForDigest:
         
         # Time near midnight
         current_time = datetime(2024, 1, 1, 23, 50, tzinfo=timezone.utc)
-        users = await get_users_due_for_digest(
+        await get_users_due_for_digest(
             mock_db, 
             current_time,
             window_minutes=30,  # Will cross midnight
