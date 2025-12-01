@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, Suspense } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useRequireAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,40 +22,58 @@ import {
     FileText,
     ExternalLink,
     BookOpen,
+    RefreshCw,
 } from 'lucide-react';
 
-export default function DigestDetailClient() {
-    const params = useParams();
-    // With catch-all route [...id], params.id is an array
-    const idArray = params?.id as string[] | undefined;
-    const id = idArray?.[0];
+/**
+ * Digest Detail Content Component
+ * Uses useSearchParams which requires Suspense boundary
+ */
+function DigestDetailContent() {
+    const searchParams = useSearchParams();
+    const id = searchParams.get('id');
     const { isLoading: authLoading } = useRequireAuth();
     const { toast } = useToast();
 
     const [digest, setDigest] = useState<DigestDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    const fetchDigest = useCallback(async () => {
+        if (!id) {
+            console.log('[DigestDetail] No ID provided');
+            setError('No digest ID provided');
+            setIsLoading(false);
+            return;
+        }
+
+        console.log('[DigestDetail] Fetching digest:', id);
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const data = await getDigest(id);
+            console.log('[DigestDetail] Digest fetched successfully:', data.id);
+            setDigest(data);
+        } catch (err) {
+            console.error('[DigestDetail] Failed to fetch digest:', err);
+            const message = err instanceof Error ? err.message : 'Failed to load digest';
+            setError(message);
+            toast({
+                title: 'Failed to load digest',
+                description: message,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [id, toast]);
 
     useEffect(() => {
-        const fetchDigest = async () => {
-            if (!id) return;
-
-            try {
-                const data = await getDigest(id);
-                setDigest(data);
-            } catch (error) {
-                console.error('Failed to fetch digest:', error);
-                toast({
-                    title: 'Failed to load digest',
-                    description: 'Please try again later.',
-                    variant: 'destructive',
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchDigest();
-    }, [id, toast]);
+        if (!authLoading && id) {
+            fetchDigest();
+        }
+    }, [authLoading, id, fetchDigest]);
 
     if (authLoading || isLoading) {
         return (
@@ -65,18 +83,42 @@ export default function DigestDetailClient() {
         );
     }
 
-    if (!digest) {
+    if (!id) {
+        return (
+            <div className="container py-8">
+                <Card>
+                    <CardContent className="py-12 text-center">
+                        <h2 className="text-lg font-semibold mb-2">No digest selected</h2>
+                        <p className="text-muted-foreground mb-4">
+                            Please select a digest from the list.
+                        </p>
+                        <Link href="/digest">
+                            <Button>View All Digests</Button>
+                        </Link>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
+    if (error || !digest) {
         return (
             <div className="container py-8">
                 <Card>
                     <CardContent className="py-12 text-center">
                         <h2 className="text-lg font-semibold mb-2">Digest not found</h2>
                         <p className="text-muted-foreground mb-4">
-                            This digest may have been deleted or doesn&apos;t exist.
+                            {error || "This digest may have been deleted or doesn't exist."}
                         </p>
-                        <Link href="/digest">
-                            <Button>Back to Digests</Button>
-                        </Link>
+                        <div className="flex gap-2 justify-center">
+                            <Button variant="outline" onClick={fetchDigest} className="gap-2">
+                                <RefreshCw className="h-4 w-4" />
+                                Retry
+                            </Button>
+                            <Link href="/digest">
+                                <Button>Back to Digests</Button>
+                            </Link>
+                        </div>
                     </CardContent>
                 </Card>
             </div>
@@ -209,7 +251,7 @@ export default function DigestDetailClient() {
             </Card>
 
             {/* Sources */}
-            {digest.headlines_used.length > 0 && (
+            {digest.headlines_used && digest.headlines_used.length > 0 && (
                 <div>
                     <h2 className="text-xl font-semibold mb-4">Sources &amp; References</h2>
                     <div className="grid gap-3 md:grid-cols-2">
@@ -256,5 +298,23 @@ export default function DigestDetailClient() {
                 </Link>
             </div>
         </div>
+    );
+}
+
+/**
+ * Digest Detail Page
+ * 
+ * Uses query parameter approach for static export compatibility.
+ * URL: /digest/view?id=<uuid>
+ */
+export default function DigestViewPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex min-h-[80vh] items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <DigestDetailContent />
+        </Suspense>
     );
 }

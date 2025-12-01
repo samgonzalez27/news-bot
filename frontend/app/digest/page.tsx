@@ -95,7 +95,7 @@ export default function DigestPage() {
                                 day: 'numeric',
                             })}
                         </h2>
-                        <Link href={`/digest/${latestDigest.id}`}>
+                        <Link href={`/digest/view?id=${latestDigest.id}`}>
                             <Button variant="outline" size="sm">
                                 View Full
                             </Button>
@@ -132,7 +132,7 @@ export default function DigestPage() {
                             </div>
 
                             <div className="mt-6 pt-4 border-t">
-                                <Link href={`/digest/${latestDigest.id}`}>
+                                <Link href={`/digest/view?id=${latestDigest.id}`}>
                                     <Button className="gap-2">
                                         Read Full Digest
                                         <ExternalLink className="h-4 w-4" />
@@ -191,7 +191,7 @@ export default function DigestPage() {
                     <>
                         <div className="space-y-4">
                             {allDigests.map((digest) => (
-                                <Link key={digest.id} href={`/digest/${digest.id}`}>
+                                <Link key={digest.id} href={`/digest/view?id=${digest.id}`}>
                                     <Card className="hover:shadow-md transition-shadow cursor-pointer">
                                         <CardHeader className="pb-2">
                                             <div className="flex items-start justify-between">
@@ -217,10 +217,10 @@ export default function DigestPage() {
                                                 </div>
                                                 <span
                                                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${digest.status === 'completed'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : digest.status === 'pending'
-                                                                ? 'bg-yellow-100 text-yellow-800'
-                                                                : 'bg-gray-100 text-gray-800'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : digest.status === 'pending'
+                                                            ? 'bg-yellow-100 text-yellow-800'
+                                                            : 'bg-gray-100 text-gray-800'
                                                         }`}
                                                 >
                                                     {digest.status}
