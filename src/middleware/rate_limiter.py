@@ -7,7 +7,7 @@ Implements in-memory rate limiting suitable for single-instance deployment.
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
+from typing import Dict, Tuple
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint

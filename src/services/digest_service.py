@@ -4,7 +4,7 @@ Digest service for orchestrating news digest generation.
 
 import time as time_module
 from datetime import date, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 from uuid import UUID
 
 from sqlalchemy import select, func

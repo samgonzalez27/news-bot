@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from src.config import get_settings
 from src.database import close_db, init_db
 from src.exceptions import register_exception_handlers
-from src.logging_config import get_logger, set_request_id, setup_logging
+from src.logging_config import set_request_id, setup_logging
 from src.middleware.rate_limiter import RateLimitMiddleware
 from src.routers import (
     auth_router,

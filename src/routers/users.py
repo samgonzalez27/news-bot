@@ -2,13 +2,11 @@
 User management routes.
 """
 
-from typing import List
-
 from fastapi import APIRouter, status
 
 from src.dependencies import CurrentUser, DbSession
 from src.logging_config import get_logger
-from src.schemas.interest import InterestResponse, UserInterestUpdate
+from src.schemas.interest import UserInterestUpdate
 from src.schemas.user import UserPreferencesUpdate, UserResponse, UserUpdate
 from src.services.interest_service import InterestService
 from src.services.user_service import UserService

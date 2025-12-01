@@ -11,7 +11,7 @@ from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
-from src.exceptions import AuthenticationError, NotFoundError
+from src.exceptions import AuthenticationError
 from src.models.user import User
 from src.services.auth_service import AuthService
 from src.services.user_service import UserService
