@@ -6,6 +6,8 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+from fastapi.security import HTTPAuthorizationCredentials
+
 from src.dependencies import (
     get_token_from_header,
     get_current_user_id,
@@ -16,45 +18,41 @@ from src.exceptions import AuthenticationError
 
 
 class TestGetTokenFromHeader:
-    """Tests for get_token_from_header function."""
-
-    @pytest.mark.asyncio
-    async def test_missing_header(self):
-        """Should raise AuthenticationError when header is missing."""
-        with pytest.raises(AuthenticationError) as exc_info:
-            await get_token_from_header(None)
-        
-        assert "Missing authorization header" in str(exc_info.value.message)
-
-    @pytest.mark.asyncio
-    async def test_invalid_format_no_bearer(self):
-        """Should raise AuthenticationError for invalid format."""
-        with pytest.raises(AuthenticationError) as exc_info:
-            await get_token_from_header("InvalidFormat")
-        
-        assert "Invalid authorization header format" in str(exc_info.value.message)
-
-    @pytest.mark.asyncio
-    async def test_invalid_format_wrong_scheme(self):
-        """Should raise AuthenticationError for wrong auth scheme."""
-        with pytest.raises(AuthenticationError) as exc_info:
-            await get_token_from_header("Basic abc123")
-        
-        assert "Invalid authorization header format" in str(exc_info.value.message)
+    """Tests for get_token_from_header function.
+    
+    Note: The HTTPBearer security scheme handles validation of the Authorization
+    header format. These tests verify the token extraction from valid credentials.
+    Invalid/missing headers are handled by HTTPBearer and return 401 via integration tests.
+    """
 
     @pytest.mark.asyncio
     async def test_valid_bearer_token(self):
-        """Should return token when format is valid."""
-        token = await get_token_from_header("Bearer mytoken123")
+        """Should return token from valid credentials."""
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="mytoken123")
+        
+        token = await get_token_from_header(credentials)
         
         assert token == "mytoken123"
 
     @pytest.mark.asyncio
-    async def test_case_insensitive_bearer(self):
-        """Should accept bearer in any case."""
-        token = await get_token_from_header("bearer mytoken123")
+    async def test_extracts_credentials_attribute(self):
+        """Should extract the credentials attribute from HTTPAuthorizationCredentials."""
+        expected_token = "jwt.token.here"
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=expected_token)
         
-        assert token == "mytoken123"
+        token = await get_token_from_header(credentials)
+        
+        assert token == expected_token
+
+    @pytest.mark.asyncio
+    async def test_handles_long_token(self):
+        """Should handle long JWT tokens."""
+        long_token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." + "a" * 500
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=long_token)
+        
+        token = await get_token_from_header(credentials)
+        
+        assert token == long_token
 
 
 class TestGetCurrentUserId:
