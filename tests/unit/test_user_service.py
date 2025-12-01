@@ -2,6 +2,11 @@
 Unit tests for user_service.py.
 
 Tests user management functions with mocked database.
+
+IMPORTANT MOCKING STRATEGY:
+- Use MagicMock for synchronous SQLAlchemy methods: add(), commit(), rollback(), close()
+- Use AsyncMock for asynchronous methods: execute(), flush(), refresh()
+- This prevents "coroutine was never awaited" warnings
 """
 
 import pytest
@@ -14,13 +19,33 @@ from src.schemas.user import UserCreate, UserUpdate, UserPreferencesUpdate
 from src.exceptions import DuplicateError, NotFoundError
 
 
+def create_mock_db_session():
+    """
+    Create a properly configured mock database session.
+    
+    - Synchronous methods (add, commit, rollback, close): MagicMock
+    - Asynchronous methods (execute, flush, refresh): AsyncMock
+    """
+    mock_db = MagicMock()
+    # Async methods must be AsyncMock
+    mock_db.execute = AsyncMock()
+    mock_db.flush = AsyncMock()
+    mock_db.refresh = AsyncMock()
+    mock_db.commit = AsyncMock()
+    mock_db.rollback = AsyncMock()
+    mock_db.close = AsyncMock()
+    # Synchronous methods use MagicMock (no await needed)
+    mock_db.add = MagicMock()
+    return mock_db
+
+
 class TestCreateUser:
     """Tests for create_user method."""
 
     @pytest.mark.asyncio
     async def test_create_user_success(self):
         """Should create user successfully."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         # No existing user
         mock_result = MagicMock()
@@ -38,19 +63,16 @@ class TestCreateUser:
         )
         
         with patch.object(service, "get_by_email", return_value=None):
-            # Mock the flush and refresh
-            mock_db.flush = AsyncMock()
-            mock_db.refresh = AsyncMock()
-            
             user = await service.create_user(user_data)
         
         assert user.email == "test@example.com"
+        # Verify synchronous add was called
         mock_db.add.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_create_user_duplicate_email(self):
         """Should raise DuplicateError for existing email."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         existing_user = MagicMock()
         existing_user.email = "test@example.com"
@@ -83,7 +105,7 @@ class TestGetById:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_user
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = UserService(mock_db)
@@ -97,7 +119,7 @@ class TestGetById:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = UserService(mock_db)
@@ -118,7 +140,7 @@ class TestGetByEmail:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_user
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = UserService(mock_db)
@@ -132,7 +154,7 @@ class TestGetByEmail:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = UserService(mock_db)
@@ -147,7 +169,7 @@ class TestUpdateUser:
     @pytest.mark.asyncio
     async def test_update_user_not_found(self):
         """Should raise NotFoundError when user not found."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -169,7 +191,7 @@ class TestUpdateUser:
         existing_user = MagicMock()
         existing_user.email = "taken@example.com"
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -190,9 +212,7 @@ class TestUpdateUser:
         mock_user.email = "test@example.com"
         mock_user.full_name = "Old Name"
         
-        mock_db = AsyncMock()
-        mock_db.flush = AsyncMock()
-        mock_db.refresh = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -211,7 +231,7 @@ class TestUpdatePreferences:
     @pytest.mark.asyncio
     async def test_update_preferences_not_found(self):
         """Should raise NotFoundError when user not found."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -231,9 +251,7 @@ class TestUpdatePreferences:
         mock_user.preferred_time = time(8, 0)
         mock_user.timezone = "UTC"
         
-        mock_db = AsyncMock()
-        mock_db.flush = AsyncMock()
-        mock_db.refresh = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -253,7 +271,7 @@ class TestDeactivateUser:
     @pytest.mark.asyncio
     async def test_deactivate_user_not_found(self):
         """Should raise NotFoundError when user not found."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -269,8 +287,7 @@ class TestDeactivateUser:
         mock_user.id = user_id
         mock_user.is_active = True
         
-        mock_db = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -286,7 +303,7 @@ class TestVerifyCredentials:
     @pytest.mark.asyncio
     async def test_verify_credentials_user_not_found(self):
         """Should return None when user not found."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -304,7 +321,7 @@ class TestVerifyCredentials:
         mock_user = MagicMock()
         mock_user.is_active = False
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -323,7 +340,7 @@ class TestVerifyCredentials:
         mock_user.is_active = True
         mock_user.hashed_password = "hashed"
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         
@@ -345,7 +362,7 @@ class TestVerifyCredentials:
         mock_user.is_active = True
         mock_user.hashed_password = "hashed"
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = UserService(mock_db)
         

@@ -2,6 +2,11 @@
 Unit tests for interest_service.py.
 
 Tests interest management functions with mocked database.
+
+IMPORTANT MOCKING STRATEGY:
+- Use MagicMock for synchronous SQLAlchemy methods: add(), commit(), rollback(), close()
+- Use AsyncMock for asynchronous methods: execute(), flush(), refresh()
+- This prevents "coroutine was never awaited" warnings
 """
 
 import pytest
@@ -10,6 +15,26 @@ from uuid import uuid4
 
 from src.services.interest_service import InterestService
 from src.exceptions import NotFoundError
+
+
+def create_mock_db_session():
+    """
+    Create a properly configured mock database session.
+    
+    - Synchronous methods (add, commit, rollback, close): MagicMock
+    - Asynchronous methods (execute, flush, refresh): AsyncMock
+    """
+    mock_db = MagicMock()
+    # Async methods must be AsyncMock
+    mock_db.execute = AsyncMock()
+    mock_db.flush = AsyncMock()
+    mock_db.refresh = AsyncMock()
+    mock_db.commit = AsyncMock()
+    mock_db.rollback = AsyncMock()
+    mock_db.close = AsyncMock()
+    # Synchronous methods use MagicMock (no await needed)
+    mock_db.add = MagicMock()
+    return mock_db
 
 
 class TestGetAllInterests:
@@ -25,7 +50,7 @@ class TestGetAllInterests:
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_interest]
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -45,7 +70,7 @@ class TestGetAllInterests:
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_active, mock_inactive]
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -66,7 +91,7 @@ class TestGetBySlug:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_interest
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -80,7 +105,7 @@ class TestGetBySlug:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -103,7 +128,7 @@ class TestGetBySlUgs:
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_tech, mock_sports]
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -125,7 +150,7 @@ class TestGetUserInterests:
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [mock_interest]
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -143,7 +168,7 @@ class TestUpdateUserInterests:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -162,7 +187,7 @@ class TestUpdateUserInterests:
         mock_user_result = MagicMock()
         mock_user_result.scalar_one_or_none.return_value = mock_user
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_user_result
         
         service = InterestService(mock_db)
@@ -187,9 +212,8 @@ class TestUpdateUserInterests:
         mock_user_result = MagicMock()
         mock_user_result.scalar_one_or_none.return_value = mock_user
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_user_result
-        mock_db.flush = AsyncMock()
         
         service = InterestService(mock_db)
         
@@ -198,6 +222,8 @@ class TestUpdateUserInterests:
         
         assert len(result) == 1
         assert result[0].slug == "technology"
+        # Verify add was called (synchronous method)
+        assert mock_db.add.called
 
 
 class TestAddInterestToUser:
@@ -206,7 +232,7 @@ class TestAddInterestToUser:
     @pytest.mark.asyncio
     async def test_add_interest_not_found(self):
         """Should raise NotFoundError when interest not found."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = InterestService(mock_db)
         
@@ -229,7 +255,7 @@ class TestAddInterestToUser:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = mock_existing
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
         
         service = InterestService(mock_db)
@@ -252,9 +278,8 @@ class TestAddInterestToUser:
         mock_result = MagicMock()
         mock_result.scalar_one_or_none.return_value = None  # Not already subscribed
         
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         mock_db.execute.return_value = mock_result
-        mock_db.flush = AsyncMock()
         
         service = InterestService(mock_db)
         
@@ -262,6 +287,7 @@ class TestAddInterestToUser:
             result = await service.add_interest_to_user(user_id, "technology")
         
         assert result == mock_interest
+        # Verify synchronous add was called with MagicMock (no await)
         mock_db.add.assert_called_once()
 
 
@@ -271,7 +297,7 @@ class TestRemoveInterestFromUser:
     @pytest.mark.asyncio
     async def test_remove_interest_not_found(self):
         """Should raise NotFoundError when interest not found."""
-        mock_db = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = InterestService(mock_db)
         
@@ -289,9 +315,7 @@ class TestRemoveInterestFromUser:
         mock_interest.id = interest_id
         mock_interest.slug = "technology"
         
-        mock_db = AsyncMock()
-        mock_db.execute = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = InterestService(mock_db)
         
@@ -308,8 +332,7 @@ class TestSeedInterests:
     @pytest.mark.asyncio
     async def test_seed_interests_all_new(self):
         """Should create all interests when none exist."""
-        mock_db = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = InterestService(mock_db)
         
@@ -322,6 +345,7 @@ class TestSeedInterests:
                 count = await service.seed_interests()
         
         assert count == 2
+        # Verify synchronous add was called (MagicMock, not AsyncMock)
         assert mock_db.add.call_count == 2
 
     @pytest.mark.asyncio
@@ -330,8 +354,7 @@ class TestSeedInterests:
         mock_existing = MagicMock()
         mock_existing.slug = "technology"
         
-        mock_db = AsyncMock()
-        mock_db.flush = AsyncMock()
+        mock_db = create_mock_db_session()
         
         service = InterestService(mock_db)
         
@@ -344,4 +367,5 @@ class TestSeedInterests:
                 count = await service.seed_interests()
         
         assert count == 1
+        # Verify synchronous add was called only once
         assert mock_db.add.call_count == 1
