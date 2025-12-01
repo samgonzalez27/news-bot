@@ -406,3 +406,86 @@ Describe exactly how the system behaves after fixes.
 ## Final Deliverable
 
 Produce a **complete repaired implementation** fixing all defects and restoring expected UX, with code blocks for each file requiring modification.
+
+---
+
+# Debugging Prompt — OpenAPI Auth + Swagger UI 401
+
+You are a senior backend engineer. I need you to thoroughly debug and fix an authentication + Swagger UI integration problem in a FastAPI application behind NGINX. The issues revolve around missing OpenAPI securitySchemes, incorrect Swagger behavior, and mismatches between how authentication is implemented and how Swagger attempts to call protected endpoints.
+
+## Context & Symptoms
+
+- My FastAPI app has protected routes that require a JWT access token via an HTTP Bearer header.
+- Authentication itself works correctly when calling the API manually with:
+  Authorization: Bearer <token>
+  (Postman and curl succeed.)
+- When I generate a token through `/api/v1/auth/login`, Swagger’s “Try it out” tests always return 401, because the UI sends no Authorization header.
+- In my codebase, there is **no OpenAPI securitySchemes defined** and no route-level `security=[...]`.
+- Because of this, Swagger UI:
+  - Shows no Authorize button
+  - Never attaches JWTs to requests
+  - Cannot test protected endpoints
+
+### NGINX reverse proxy config (relevant section)
+location /api/ {
+    proxy_pass http://api_backend/api/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+There is no header stripping happening; authentication works fully outside Swagger.
+
+## What I Need You To Produce
+
+Deliver a complete, deeply reasoned fix that includes:
+
+### 1. The correct FastAPI OpenAPI configuration
+- Add a proper `securitySchemes` entry for HTTP Bearer.
+- Add global `security=[{"bearerAuth": []}]` or per-route security declarations.
+- Ensure Swagger UI’s Authorize button appears and functions.
+
+### 2. Updated FastAPI code
+Provide corrected, production-ready code for:
+- security.py (or wherever your bearer scheme / OpenAPI components are defined)
+- Any dependencies used for validating JWTs (e.g., `get_token_from_header`, `get_current_user`)
+- main.py showing proper FastAPI initialization and swagger configuration
+- Correct use of `dependencies=[Depends(get_current_user)]` for protected routes
+
+### 3. Validation of the end-to-end flow
+Ensure:
+- Logging in generates a valid token.
+- Clicking “Authorize” in Swagger stores the token.
+- Swagger attaches `Authorization: Bearer <token>` to every protected request.
+- The 401 errors disappear.
+- NGINX path rewriting still routes `/api/*` cleanly to the backend.
+
+### 4. Identify any hidden root causes
+Provide concise senior-level reasoning for potential hidden causes, including:
+- Incorrect token prefix (e.g., using "bearer" vs "Bearer")
+- Wrong dependency injection or wrong dependency signature
+- Missing `tokenUrl` settings in OpenAPI/security config
+- OpenAPI not regenerating after code edits (timing/lifespan issues)
+- Wrong path prefix (`/api/v1/...`) in swagger docs vs NGINX proxy path
+- NGINX not forwarding `Authorization` header (recommend `proxy_set_header Authorization $http_authorization;`)
+
+### 5. A fully corrected, clean, final version
+Produce a complete and fully functioning corrected snippet for:
+- `main.py` (full relevant sections to initialize OpenAPI security)
+- `security.py` (bearer scheme + helpers)
+- Any needed auth dependency functions
+- Example protected route showing the security applied
+- A sample Swagger request with the exact Authorization header that will succeed
+
+## Requirements
+- Provide explicit, copy-pastable code (not pseudocode).
+- No partial patches — the code should be ready to commit.
+- Explanations should be concise, senior-level, and actionable.
+- If you detect additional auth-related issues or smells in the provided context, call them out and propose fixes.
+
+## End
+Produce the full fix now.
