@@ -575,3 +575,87 @@ A complete, corrected test suite with:
 ## Your Task
 
 Generate the final corrected test suite, close all remaining branches, fix all async warnings, and produce a fully green 100% coverage run.
+
+---
+
+# Fix CI Linter and Test Failures - Prompt
+
+You are a senior Python engineer. I need you to fix our CI so that all tests pass when code is pushed to GitHub. Our CI uses Ruff for linting, and GitHub is failing because of 10 Ruff violations. I need a fully reasoned plan and concrete code fixes that permanently eliminate these linter errors.
+
+## Current Ruff Errors
+
+### E712 — Avoid comparing with `True`
+Files containing this issue:
+- src/services/interest_service.py:43:31
+- src/scheduler/jobs.py:53:20
+- src/scheduler/jobs.py:62:20
+
+These lines currently look like:
+if something == True:
+They must become:
+if something:
+or, where applicable:
+if model.is_active:
+
+### F401 — Unused imports
+Ruff reports unused imports in:
+- src/services/digest_service.py:7:31 — typing.List
+- src/scheduler/jobs.py:6:32 — datetime.time
+- src/routers/users.py:5:20 — typing.List
+- src/routers/users.py:11:34 — InterestResponse
+- src/middleware/rate_limiter.py:10:26 — typing.Optional
+- src/main.py:20:32 — get_logger
+- src/dependencies.py:12:49 — NotFoundError
+
+These must be removed unless they should actually be used. If a missing usage is a real bug (e.g., logger intended to be used), the code should be corrected instead of deleting the import.
+
+## What I Need You To Produce
+
+I want a complete, senior-level, commit-ready fix addressing all 10 Ruff errors.
+
+### 1. Identify exact code fixes per file  
+Specify precisely what needs to change for each file and show corrected code blocks or corrected lines.
+
+### 2. Decide remove vs. use for imports  
+Determine whether to:
+- Remove the unused import, or  
+- Restore its intended usage (e.g., logging, validation, raising errors).
+
+### 3. Provide corrected code snippets  
+Produce fully corrected versions of the affected sections with no broken context.
+
+### 4. Ensure functional integrity  
+Confirm:
+- No tests break  
+- No regression is introduced  
+- All unused imports are removed or used correctly  
+- All E712 violations are fixed using the correct model attributes  
+- Formatting remains Ruff-compliant
+
+### 5. Improve CI stability  
+If necessary:
+- Refine ruff.toml  
+- Adjust GitHub Actions workflow so linting/test steps run in a stable, reproducible environment  
+- Confirm pytest path resolution and dependency installation  
+- Recommend adding pre-commit hooks using Ruff + Black
+
+### 6. Provide the final patched code  
+Supply final corrected versions of:
+- interest_service.py  
+- digest_service.py  
+- scheduler/jobs.py  
+- routers/users.py  
+- middleware/rate_limiter.py  
+- main.py  
+- dependencies.py  
+
+The output must be commit-ready and clean.
+
+## Deliverables
+
+1. Clear explanations for each Ruff error.  
+2. Exact corrected lines or full corrected blocks.  
+3. A final “no remaining Ruff violations” checklist.  
+4. Optional improvements to prevent recurrence.
+
+Produce the complete solution now.
