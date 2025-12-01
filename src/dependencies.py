@@ -5,7 +5,9 @@ FastAPI dependencies for the News Digest API.
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Header
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security.utils import get_authorization_scheme_param
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database import get_db
@@ -15,29 +17,62 @@ from src.services.auth_service import AuthService
 from src.services.user_service import UserService
 
 
+class HTTPBearerWith401(HTTPBearer):
+    """
+    Custom HTTPBearer that returns 401 Unauthorized instead of 403 Forbidden.
+    
+    Per HTTP spec, 401 is correct for missing authentication, while 403 is for
+    insufficient permissions. FastAPI's default HTTPBearer returns 403.
+    """
+    
+    async def __call__(self, request: Request) -> HTTPAuthorizationCredentials | None:
+        authorization = request.headers.get("Authorization")
+        scheme, credentials = get_authorization_scheme_param(authorization)
+        
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Not authenticated",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            return None
+        
+        return HTTPAuthorizationCredentials(scheme=scheme, credentials=credentials)
+
+
+# HTTP Bearer security scheme for OpenAPI/Swagger UI integration
+# This automatically adds securitySchemes to OpenAPI spec and shows "Authorize" button
+bearer_scheme = HTTPBearerWith401(
+    scheme_name="bearerAuth",
+    description="JWT access token. Obtain via POST /api/v1/auth/login",
+    auto_error=True,  # Automatically return 401 if no token provided
+)
+
+
 async def get_token_from_header(
-    authorization: Annotated[str | None, Header()] = None,
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
 ) -> str:
     """
     Extract JWT token from Authorization header.
 
+    Uses HTTPBearer security scheme for proper OpenAPI integration.
+    The HTTPBearer dependency handles:
+    - Validating the "Bearer" prefix
+    - Extracting the token
+    - Generating OpenAPI securitySchemes
+    - Showing "Authorize" button in Swagger UI
+
     Args:
-        authorization: Authorization header value.
+        credentials: HTTP Authorization credentials from HTTPBearer.
 
     Returns:
         str: JWT token.
 
     Raises:
-        AuthenticationError: If header is missing or invalid.
+        HTTPException: 401 if header is missing or invalid (handled by HTTPBearer).
     """
-    if not authorization:
-        raise AuthenticationError("Missing authorization header")
-
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        raise AuthenticationError("Invalid authorization header format")
-
-    return parts[1]
+    return credentials.credentials
 
 
 async def get_current_user_id(
