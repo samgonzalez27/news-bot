@@ -259,3 +259,150 @@ Your first task:
 Generate the complete, final, runnable codebase for both the backend and frontend, including Docker, Nginx, pgAdmin, and documentation, according to all specifications above.
 
 All output must be complete file contents, not fragments.
+
+---
+
+# Fixing front-end Functionality Prompting
+
+## Objectives
+
+Analyze and fix the following **three critical defects** in a Next.js 14 + TypeScript + shadcn/ui + JWT auth + FastAPI backend stack. Your output must include:
+
+- Root cause analysis  
+- Exact code fixes (both frontend + backend if needed)  
+- Required API call adjustments  
+- React state fixes  
+- Next.js routing corrections  
+- Auth provider corrections  
+- Data-fetching corrections  
+- Logging instrumentation  
+- End-to-end verification steps
+
+Do NOT generate theory. Produce the concrete repairs.
+
+---
+
+## Defect 1 — Registration Works in Backend but Frontend Shows “registration failed – failed to fetch”
+
+Observed behavior:
+- User submits registration form with valid credentials.
+- Backend **successfully creates the user** (verified by logging in right after).
+- Frontend displays error toast: *"Registration failed – failed to fetch"*
+- Behavior is **intermittent**, occurring even when backend logs show 200 OK responses.
+
+Your tasks:
+1. Identify and enumerate the **possible root causes**, with priority ordering:
+   - CORS misconfiguration
+   - Network request not awaited or swallowed error
+   - Double-submit due to uncontrolled form
+   - Navigating away before fetch resolves
+   - Wrong `Content-Type`
+   - Incorrect API URL construction (`NEXT_PUBLIC_API_URL`)
+   - Nginx reverse proxy misrouting (for container mode)
+   - Missing `return` in `handleRegister`
+   - Missing `response.ok` handling
+2. Show the exact rewritten frontend API request code that **guarantees**:
+   - Correct await behavior  
+   - Proper error branching  
+   - Comprehensive error logging  
+   - A single toast per error  
+3. Provide the corrected implementation for the `/register` page including:
+   - Controlled inputs  
+   - Client-side validation  
+   - Correct dependency usage from AuthProvider  
+4. Provide the corrected CORS and Nginx config if they are contributing factors.
+
+---
+
+## Defect 2 — Landing Page Does Not Change UI After Login
+
+Current behavior:
+- When logged OUT: landing page correctly shows **Sign In** + **Start Free**.
+- When logged IN: landing page still shows **Sign In** + **Start Free**, even though clicking them goes to the dashboard.
+
+Your tasks:
+1. Diagnose likely root causes:
+   - AuthProvider not exposing correct `isAuthenticated`
+   - Token missing or failing initial validation
+   - Landing page rendered as static (SSG) instead of client component
+   - Missing `use client` or incorrect use of server components
+   - Failing hydration of auth state
+2. Provide a fixed implementation for:
+   - AuthProvider context state
+   - JWT restore-from-localStorage logic
+   - LandingPage component including conditional routing:
+     - If logged in → show **Go to Dashboard** button  
+     - If logged out → show **Sign In / Create Account** buttons
+3. Provide a short verification list confirming correctness.
+
+---
+
+## Defect 3 — Digest Detail Page Always Returns “Digest Not Found”
+
+Observed:
+- Clicking a digest on `/dashboard` leads to:  
+  `/digest/<id>`
+- Page displays:
+  - “Digest not found. This digest may have been deleted or doesn't exist.”
+  - Toast “Failed to load digest”
+- Even for **newly created digests**, always fails.
+
+Your tasks:
+1. Identify likely root causes:
+   - Wrong route pathname (`/digest/` vs `/digests/`)
+   - Wrong API request URL
+   - Missing URL parameter parsing in Next.js route (`[id]/page.tsx`)
+   - Incorrect `generateStaticParams` or static export mode preventing dynamic fetch
+   - Trying to fetch API routes during build instead of client runtime
+   - Backend digest GET endpoint returning 401 due to missing token
+   - Token not forwarded in fetch headers
+2. Provide:
+   - Corrected Next.js page folder structure (App Router)
+   - Corrected `useEffect` or `useQuery` digest fetch logic
+   - Correct API client code including Authorization header
+   - Correct backend GET handler example
+3. Patch any build-time problems caused by `generateStaticParams` or accidental SSG.
+4. Provide full corrected code for:
+   - `/digest/[id]/page.tsx`
+   - The digest fetch helper function
+   - Any required backend route fixes
+
+---
+
+## Required Output Format
+
+Produce **all of the following** in order:
+
+### 1. Root-Cause Analysis for Each Problem  
+Bullet list, specific, technical, no guesses.
+
+### 2. Full Corrected Code  
+Front-end and backend where needed, including:
+- Registration page
+- AuthProvider
+- Landing page
+- Digest detail page
+- API helpers
+- CORS settings
+- Nginx rules (if affected)
+
+### 3. End-to-End Flow Verification  
+Describe exactly how the system behaves after fixes.
+
+---
+
+## Additional Constraints
+
+- Use TypeScript conventions.
+- Use React Server Components **only where safe**, otherwise apply `use client`.
+- Ensure all auth-dependent pages are client components.
+- JWTs stored in `localStorage`.
+- No double-fetching.
+- No static pre-rendering for user-specific data.
+- Must assume containers are running behind Nginx.
+
+---
+
+## Final Deliverable
+
+Produce a **complete repaired implementation** fixing all defects and restoring expected UX, with code blocks for each file requiring modification.
