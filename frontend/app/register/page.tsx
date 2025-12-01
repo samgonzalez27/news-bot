@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -30,8 +30,21 @@ export default function RegisterPage() {
         full_name: '',
     });
     const [isLoading, setIsLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Track component mount status
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
 
     // Redirect if already authenticated
+    useEffect(() => {
+        if (!authLoading && isAuthenticated) {
+            router.push('/dashboard');
+        }
+    }, [authLoading, isAuthenticated, router]);
+
     if (authLoading) {
         return (
             <div className="flex min-h-[80vh] items-center justify-center">
@@ -41,7 +54,6 @@ export default function RegisterPage() {
     }
 
     if (isAuthenticated) {
-        router.push('/dashboard');
         return null;
     }
 
@@ -54,6 +66,12 @@ export default function RegisterPage() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Prevent double-submit
+        if (isLoading) {
+            console.log('[Register] Prevented double-submit');
+            return;
+        }
 
         if (formData.password !== formData.confirmPassword) {
             toast({
@@ -73,30 +91,53 @@ export default function RegisterPage() {
             return;
         }
 
+        // Validate password has letter and number
+        if (!/[a-zA-Z]/.test(formData.password) || !/\d/.test(formData.password)) {
+            toast({
+                title: 'Invalid password',
+                description: 'Password must contain at least one letter and one number.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
         setIsLoading(true);
+        console.log('[Register] Starting registration for:', formData.email);
 
         try {
             await register({
-                email: formData.email,
+                email: formData.email.trim().toLowerCase(),
                 password: formData.password,
-                full_name: formData.full_name,
+                full_name: formData.full_name.trim(),
             });
-            toast({
-                title: 'Account created!',
-                description: 'Welcome to NewsDigest. Let\'s set up your interests.',
-                variant: 'default',
-            });
-            router.push('/interests');
+
+            // Only show toast and navigate if component is still mounted
+            if (mounted) {
+                console.log('[Register] Registration successful, navigating to interests');
+                toast({
+                    title: 'Account created!',
+                    description: 'Welcome to NewsDigest. Let\'s set up your interests.',
+                    variant: 'default',
+                });
+                router.push('/interests');
+            }
         } catch (error) {
-            const message =
-                error instanceof Error ? error.message : 'Registration failed';
-            toast({
-                title: 'Registration failed',
-                description: message,
-                variant: 'destructive',
-            });
+            console.error('[Register] Registration error:', error);
+
+            // Only show toast if component is still mounted
+            if (mounted) {
+                const message =
+                    error instanceof Error ? error.message : 'Registration failed. Please try again.';
+                toast({
+                    title: 'Registration failed',
+                    description: message,
+                    variant: 'destructive',
+                });
+            }
         } finally {
-            setIsLoading(false);
+            if (mounted) {
+                setIsLoading(false);
+            }
         }
     };
 

@@ -68,15 +68,36 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }, []);
 
     const register = useCallback(async (data: RegisterRequest) => {
-        await apiRegister(data);
-        // After successful registration, log in automatically
-        const response = await apiLogin({
-            email: data.email,
-            password: data.password,
-        });
-        setToken(response.access_token);
-        const userData = await getCurrentUser();
-        setUser(userData);
+        console.log('[Auth] register: starting registration');
+
+        // Step 1: Register the user
+        try {
+            await apiRegister(data);
+            console.log('[Auth] register: registration API call succeeded');
+        } catch (regError) {
+            console.error('[Auth] register: registration API call failed', regError);
+            throw regError; // Re-throw with original error
+        }
+
+        // Step 2: Auto-login after successful registration
+        try {
+            console.log('[Auth] register: auto-login starting');
+            const response = await apiLogin({
+                email: data.email,
+                password: data.password,
+            });
+            setToken(response.access_token);
+            console.log('[Auth] register: token stored');
+
+            const userData = await getCurrentUser();
+            setUser(userData);
+            console.log('[Auth] register: user data fetched, registration complete');
+        } catch (loginError) {
+            console.error('[Auth] register: auto-login failed (but registration succeeded)', loginError);
+            // Registration succeeded but auto-login failed - don't throw
+            // User can manually log in
+            throw new Error('Account created! Please log in manually.');
+        }
     }, []);
 
     const logout = useCallback(() => {

@@ -139,10 +139,18 @@ export async function login(credentials: LoginRequest): Promise<TokenResponse> {
  * Register a new user
  */
 export async function register(data: RegisterRequest): Promise<User> {
-    return apiFetch<User>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(data),
-    });
+    console.log('[API] register: starting registration for', data.email);
+    try {
+        const result = await apiFetch<User>('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        });
+        console.log('[API] register: success for', data.email);
+        return result;
+    } catch (error) {
+        console.error('[API] register: failed for', data.email, error);
+        throw error;
+    }
 }
 
 /**
