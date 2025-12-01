@@ -164,7 +164,7 @@ class DigestService:
         Raises:
             NotFoundError: If user not found.
         """
-        # Default to yesterday
+        # Default to yesterday (NewsAPI free tier returns previous day's headlines)
         if digest_date is None:
             digest_date = date.today() - timedelta(days=1)
 
@@ -228,9 +228,11 @@ class DigestService:
 
             # Generate digest content
             openai_service = await get_openai_service()
+            # Format date as human-readable string for Claude (e.g., "November 30, 2025")
+            formatted_date = digest_date.strftime("%B %d, %Y")
             result = await openai_service.generate_digest(
                 headlines=headlines,
-                digest_date=digest_date.isoformat(),
+                digest_date=formatted_date,
                 interests=[i.slug for i in interests],
             )
 
@@ -282,7 +284,9 @@ class DigestService:
         Returns:
             Digest: Created digest.
         """
-        content = f"# Daily News Digest - {digest_date.isoformat()}\n\n{message}"
+        # Format the date nicely for the header
+        formatted_date = digest_date.strftime("%B %d, %Y")
+        content = f"# Daily News Digest – {formatted_date}\n\n**Executive Summary:** {message}\n\n## Key Takeaways\n- {message}"
 
         digest = Digest(
             user_id=user_id,

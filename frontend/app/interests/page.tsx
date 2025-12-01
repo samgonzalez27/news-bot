@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRequireAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,13 +27,20 @@ export default function InterestsPage() {
     const [isSaving, setIsSaving] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
 
-    // Initialize selected interests from user data
+    // Track whether initial sync has occurred to prevent re-sync after save
+    const isInitializedRef = useRef(false);
+    // Track the last saved state to compute hasChanges accurately
+    const savedSlugsRef = useRef<Set<string>>(new Set());
+
+    // Initialize selected interests from user data ONLY on first load
     useEffect(() => {
-        if (user) {
+        if (user && !isInitializedRef.current) {
             const userInterestSlugs = new Set(
                 user.interests.map((interest) => interest.slug)
             );
             setSelectedSlugs(userInterestSlugs);
+            savedSlugsRef.current = new Set(userInterestSlugs);
+            isInitializedRef.current = true;
         }
     }, [user]);
 
@@ -57,7 +64,15 @@ export default function InterestsPage() {
         fetchInterests();
     }, [toast]);
 
-    const toggleInterest = (slug: string) => {
+    // Compute hasChanges by comparing current selection with saved state
+    // Using Array.from() for TypeScript/Next.js build compatibility (avoids downlevelIteration issues)
+    const computeHasChanges = useCallback((current: Set<string>, saved: Set<string>): boolean => {
+        if (current.size !== saved.size) return true;
+        // Convert Set to Array for iteration - avoids TS build errors with for...of on Sets
+        return !Array.from(current).every((slug) => saved.has(slug));
+    }, []);
+
+    const toggleInterest = useCallback((slug: string) => {
         setSelectedSlugs((prev) => {
             const newSet = new Set(prev);
             if (newSet.has(slug)) {
@@ -65,10 +80,11 @@ export default function InterestsPage() {
             } else {
                 newSet.add(slug);
             }
+            // Update hasChanges based on comparison with saved state
+            setHasChanges(computeHasChanges(newSet, savedSlugsRef.current));
             return newSet;
         });
-        setHasChanges(true);
-    };
+    }, [computeHasChanges]);
 
     const handleSave = async () => {
         if (selectedSlugs.size === 0) {
@@ -80,11 +96,26 @@ export default function InterestsPage() {
             return;
         }
 
+        // Capture the current selection before async operations
+        const slugsToSave = Array.from(selectedSlugs);
+        const slugsSet = new Set(selectedSlugs);
+
         setIsSaving(true);
         try {
-            await updateUserInterests({ interest_slugs: Array.from(selectedSlugs) });
+            // Send update to server
+            await updateUserInterests({ interest_slugs: slugsToSave });
+
+            // Update saved state reference to match what we just saved
+            // This prevents the UI from flickering back
+            savedSlugsRef.current = slugsSet;
+
+            // Refresh user context in background (for other components)
+            // but DO NOT re-derive local state from it
             await refreshUser();
+
+            // Clear changes flag AFTER successful save
             setHasChanges(false);
+
             toast({
                 title: 'Interests updated!',
                 description: 'Your news preferences have been saved.',
@@ -97,20 +128,19 @@ export default function InterestsPage() {
                 description: message,
                 variant: 'destructive',
             });
+            // On error, recompute hasChanges since save failed
+            setHasChanges(computeHasChanges(selectedSlugs, savedSlugsRef.current));
         } finally {
             setIsSaving(false);
         }
     };
 
-    const resetChanges = () => {
-        if (user) {
-            const userInterestSlugs = new Set(
-                user.interests.map((interest) => interest.slug)
-            );
-            setSelectedSlugs(userInterestSlugs);
-            setHasChanges(false);
-        }
-    };
+    const resetChanges = useCallback(() => {
+        // Reset to the last saved state (from ref), not from user object
+        // This ensures consistency even if user object hasn't updated yet
+        setSelectedSlugs(new Set(savedSlugsRef.current));
+        setHasChanges(false);
+    }, []);
 
     if (authLoading || isLoading) {
         return (
@@ -160,8 +190,8 @@ export default function InterestsPage() {
                             <Card
                                 key={interest.id}
                                 className={`cursor-pointer transition-all ${isSelected
-                                        ? 'border-primary bg-primary/5 shadow-sm'
-                                        : 'hover:border-muted-foreground/50'
+                                    ? 'border-primary bg-primary/5 shadow-sm'
+                                    : 'hover:border-muted-foreground/50'
                                     }`}
                                 onClick={() => toggleInterest(interest.slug)}
                             >

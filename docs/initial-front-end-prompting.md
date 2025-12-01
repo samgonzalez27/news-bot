@@ -489,3 +489,397 @@ Produce a complete and fully functioning corrected snippet for:
 
 ## End
 Produce the full fix now.
+
+---
+
+# Claude 4.5 Prompt — Fix Non-Persistent UI Switch State After Save (Visual Desync Issue)
+
+You are a senior front-end engineer. I need you to diagnose and fix a **visual state desynchronization bug** affecting the Interest Settings page. The backend successfully saves updates, but **the UI switch components sometimes revert to their previous positions immediately after clicking “Save Changes.”** Reloading the page shows the correct, updated values—confirming the issue is front-end state handling, not backend logic.
+
+## Context
+- User toggles interest switches (ON/OFF).
+- User clicks **Save Changes**.
+- Frontend sends a successful PUT/PATCH request.
+- Backend updates the database correctly.
+- UI should reflect the updated state instantly.
+- **Observed issue:** switch positions revert visually before showing saved values. This occurs inconsistently.
+
+## Diagnosis Requirements
+Identify and reason about all plausible causes of **front-end state desync**, including:
+1. **Optimistic UI not synchronized** with backend response.
+2. **Stale state closure** in React components or event handlers.
+3. **Incorrect state derivation**: using props instead of authoritative state sources.
+4. **Race conditions** between state updates, local UI updates, and incoming re-fetches.
+5. **Asynchronous re-rendering** that overwrites updated UI values with old ones.
+6. **Query library issues (React Query/SWR)** reloading stale cached data after mutation.
+7. **Latency artifacts** due to sequential vs. parallel updates.
+8. **Form library behavior** resetting values due to a re-render cycle.
+
+## What I Need You to Produce
+
+### 1. A complete root-cause analysis  
+Explain exactly which pattern or anti-pattern is most likely responsible based on common switch-toggle behavior in SPAs.
+
+### 2. A corrected state-management design  
+Provide a definitive strategy for robust state synchronization, covering:
+- How UI state should be sourced and updated.
+- How Save Changes should update local state.
+- How to prevent stale data from overwriting the UI.
+- How to enforce exact correctness between backend → cache → UI.
+
+### 3. Corrected code samples  
+Provide **precise**, minimal, production-grade React code demonstrating:
+- A properly controlled switch component.
+- A mutation handler that updates both server data and local state deterministically.
+- Cache invalidation or cache replacement flows (React Query or SWR).
+- Prevention of race conditions and double state updates.
+
+### 4. A fully stable post-save UX flow  
+Deliver an improved interaction design that guarantees:
+- Immediate visual confirmation of saved state.
+- No flicker, no reversion of switches, no ambiguous UI states.
+- Clear success/error handling.
+- A defensively coded re-fetch process that cannot reintroduce stale values.
+
+### 5. An implementation checklist  
+Provide a final checklist addressing:
+- Client-side authoritative state source
+- Mutation → optimistic update → server reconciliation
+- Cache invalidation strategy
+- Prevention of unnecessary re-renders
+- Ensuring consistent switch behavior across all browsers and latencies
+
+## Deliverable
+A full, senior-level, ready-to-implement solution that permanently eliminates the visual flip-back issue and guarantees an accurate, stable, predictable UI state immediately after saving changes.
+
+---
+
+# Claude 4.5 Prompt — Fix Next.js Build Error for Set Iteration in Interest Settings Page
+
+You are a senior front-end engineer with expertise in React, Next.js, and TypeScript. We previously fixed a visual desync bug on the Interest Settings page using `Set<string>` to track selected interest slugs. That fix is correct functionally, but **the production build now fails**:
+
+Error: 
+Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.  
+
+## Context
+- Project uses **Next.js 14** with **TypeScript**.
+- `selectedSlugs` and `savedSlugsRef` are both `Set<string>`.
+- We iterate over these Sets for functions like `computeHasChanges`:
+
+for (const slug of current) { if (!saved.has(slug)) return true; }
+
+- Local dev builds succeed; error occurs only during production build (Dockerized `next build`).
+- TypeScript config may have `target: es5` or missing `downlevelIteration`.
+
+## Diagnosis Requirements
+1. Identify **why the build fails** despite the code working locally.
+2. Explain **all ways to safely iterate Sets in TypeScript/Next.js** in production.
+3. Determine **whether to adjust tsconfig, convert Sets to Arrays, or refactor iteration** for maximum compatibility without breaking state logic.
+4. Ensure **all previous fixes to the switch desync bug remain intact**.
+
+## Deliverables
+
+### 1. Root-cause analysis
+- Explain exactly why the `for...of` over `Set<string>` triggers a build-time TypeScript error.
+- Cover differences between local dev compilation and production Docker build.
+
+### 2. Corrected TypeScript-compatible implementation
+- Rewrite `computeHasChanges` and any other iteration over `Set<string>` for full Next.js/TypeScript compatibility.
+- Preserve `Set` usage for efficient membership checks (`has`) where appropriate.
+- Ensure no visual desync or UX regressions occur.
+
+### 3. Suggested tsconfig adjustments (if necessary)
+- Explain trade-offs between setting `"target": "es2015"` vs `"downlevelIteration": true`.
+- Provide recommended tsconfig snippet that will allow `Set` iteration safely in production.
+
+### 4. Minimal, production-ready code sample
+- Show a fully working, type-safe version of `computeHasChanges` and the toggle/save logic.
+- Ensure it is compatible with Dockerized `next build` for Next.js 14 and TypeScript.
+
+### 5. Implementation checklist
+- Build passes with no TypeScript errors.
+- UI state remains stable post-save.
+- No regressions from previous fixes.
+- Code is compatible across all browsers supported by Next.js project.
+
+Goal: Produce a fully corrected, production-ready solution that fixes the `Set` iteration build error while maintaining the visual switch state stability previously implemented.
+
+---
+
+# Claude 4.5 Prompt — Fix Bullet-Point Formatting Issue in Markdown Preview
+
+You are a senior front-end engineer with expertise in React and Markdown rendering. We have a **bullet-point formatting issue** in our project where the **first bullet of a section renders incorrectly in the preview**, but renders correctly in the full content view.
+
+## Context
+- `latestDigest.content` is rendered in **two ways**:
+  1. **Preview renderer** (short snippet)
+  2. **Full renderer** (entire content)
+- Observed behavior:
+  - **Preview:** first bullet has an extra line break, misaligned indentation.
+  - **Full content:** bullets render correctly with `<li>` tags.
+- Current implementation:
+  - Preview:
+    `.replace(/\n/g, '<br />')`  // happens BEFORE bullet handling
+  - Full content:
+    `.replace(/^\- (.*$)/gim, '<li>...</li>')`  
+
+- The mismatch causes the **first bullet to wrap in unexpected `<br />` tags** before being converted to `<li>`.
+
+## Diagnosis Requirements
+1. Explain **why the first bullet in preview is misformatted** while others render correctly.
+2. Identify **all regex, render order, and DOM transformation issues** causing this behavior.
+3. Suggest a strategy to **unify preview and full content rendering** without breaking existing formatting.
+4. Consider performance and maintainability when handling markdown transformations.
+
+## Deliverables
+
+### 1. Root-cause analysis
+- Explain why `.replace(/\n/g, '<br />')` before bullet processing creates extra `<br>` on the first bullet.
+- Cover differences between preview and full render paths.
+- Identify any other potential edge cases (e.g., multiple consecutive bullets, nested bullets).
+
+### 2. Corrected implementation
+- Provide a **single, reusable `renderDigestMarkdown()` function** that works for both preview and full content.
+- Ensure correct bullet rendering with `<li>` tags.
+- Preserve line breaks, spacing, and other Markdown formatting.
+
+### 3. Minimal, production-ready code sample
+- Demonstrate how to process:
+  - Newlines
+  - Bullet points (`- item`)
+  - Nested lists (if relevant)
+- Show usage in both preview and full content rendering.
+
+### 4. Implementation checklist
+- First and subsequent bullets render correctly in preview and full content.
+- No extra `<br />` tags on first bullet.
+- Reusable, maintainable function.
+- Compatible with existing CSS and text styling.
+
+Goal: Deliver a robust, production-ready fix that ensures **consistent bullet-point rendering** across all Markdown views, eliminating first-bullet indentation issues.
+
+---
+
+# Claude 4.5 Prompt — Remove Quick Summary Card to Avoid Duplicate Executive Summary
+
+You are a senior front-end engineer with expertise in React and UI rendering. We have a **duplication issue** in our digest component:
+
+- `digest.summary` (Quick Summary) is derived from the Executive Summary text inside `digest.content`.
+- As a result:
+  - Quick Summary card displays the same text as the Executive Summary section.
+  - Users see redundant content in the UI.
+
+## Context
+- `digest.content` contains the full markdown, including the Executive Summary.
+- `digest.summary` is extracted via `_extract_summary()`:
+  - Finds the Executive Summary line.
+  - Returns the next line (same as text already in content).
+- Current UI renders both:
+  - Quick Summary card
+  - Full digest with Executive Summary section
+
+## Diagnosis Requirements
+1. Confirm that Quick Summary card is redundant because its content duplicates the Executive Summary in `digest.content`.
+2. Identify all components, templates, or rendering logic that reference `digest.summary`.
+3. Ensure removing the Quick Summary card does **not break layout, styling, or other functionality**.
+
+## Deliverables
+
+### 1. Root-cause analysis
+- Explain why the Quick Summary duplicates the Executive Summary.
+- Identify any edge cases where removal could affect other UI parts.
+
+### 2. Corrected implementation
+- Remove the Quick Summary card entirely from all UI views.
+- Ensure digest content still renders correctly.
+- Maintain all existing styles and spacing for the remaining sections.
+
+### 3. Minimal, production-ready code sample
+- Show the updated component(s) with Quick Summary card removed.
+- Include any adjustments to props, state, or template logic.
+
+### 4. Implementation checklist
+- Quick Summary card no longer appears in the UI.
+- Executive Summary section remains intact and fully functional.
+- No broken layout or styling regressions.
+- Code is clean, maintainable, and compatible with current digest rendering logic.
+
+Goal: Permanently eliminate the redundant Quick Summary card while keeping the Executive Summary fully visible and correctly formatted in the digest.
+
+---
+
+# Claude 4.5 Prompt — Remove Claude-Generated Header to Eliminate Date Mismatch in Digest
+
+You are a senior front-end engineer specializing in content pipelines and markdown rendering. Our digest page is showing **two different dates** because the system mixes:
+
+1. Our canonical date → `digest.digest_date`
+2. A markdown header generated by you inside the digest content:
+   `# Daily News Digest – [Date]`
+
+This generates inconsistent output:
+- UI header uses `digest.digest_date`
+- Markdown header uses a different date that you generate internally
+
+To fix this cleanly, we are choosing **Option C**:  
+**Stop generating the internal header entirely.**  
+The UI will supply its own header, and the markdown content should not include any date header.
+
+## Requirements
+
+### 1. Root-cause analysis
+- Confirm why the duplicate dates occur.
+- Identify all template or formatting sections of your output that introduce the markdown header.
+
+### 2. Updated content-generation rules
+Implement this change:
+
+**Do not generate any top-level date header inside the digest content.**  
+Specifically, remove lines such as:
+`# Daily News Digest – …`
+
+The UI will handle all header and date rendering externally.
+
+### 3. Revised output specification
+When generating a digest, follow these rules:
+- Begin directly with the section structure (e.g., Executive Summary → Key Developments → etc.)
+- Do not include any markdown `#` headers that represent the digest title or digest date.
+- Do not infer or produce any date inside the markdown body.
+- Assume the UI will prepend its own title and date outside of your generated markdown.
+
+### 4. Provide corrected examples
+Show before/after markdown structures:
+- Before: markdown including a top-level header with a date.
+- After: markdown starting directly with the Executive Summary section.
+
+### 5. Implementation checklist
+- No date appears anywhere inside the markdown you generate.
+- No title header is produced.
+- Digest begins at the Executive Summary section.
+- All other sections remain unaffected.
+- Output remains stable, consistent, and fully structured.
+
+Goal: Produce a clean, date-neutral markdown digest so the UI-controlled header renders the only date shown to the user.
+
+---
+
+# Claude 4.5 Prompt — Restore Accurate Digest Date and Remove Incorrect UI Header Date
+
+You are a senior engineer responsible for ensuring date accuracy and consistency in a news-digest pipeline. After implementing Option C earlier (removing the Claude-generated header), we uncovered a more fundamental problem:
+
+**The date shown in the UI header (`Latest Digest – <date>`) is incorrect, while the date previously generated inside your markdown was actually the accurate one.**
+
+Example of the issue:
+
+- Digest content is based on articles from **November 30, 2025**.
+- UI header shows: **Saturday, November 29, 2025** (incorrect).
+- Previously, your markdown correctly showed: **Daily News Digest – November 30, 2025**.
+
+Since we removed your internally generated header, we also accidentally removed the accurate date.  
+We now need to reverse that decision in a controlled way.
+
+## Goal
+**Restore the Claude-generated digest date as the canonical authoritative date, and remove the UI-generated date that is currently misleading.**
+
+## Requirements
+
+### 1. Root-cause analysis
+- Explain why the UI date (`digest.digest_date`) is inaccurate.
+- Confirm why the date inside your generated markdown was actually correct (e.g., based on source article timestamps).
+- Identify where in your output template the data-derived digest date belongs.
+
+### 2. Updated date-handling rules
+Implement the following:
+
+**Rule A — Claude must once again generate the top-level digest header:**
+
+Format:
+`# Daily News Digest – <Full Month Name> <Day>, <Year>`
+
+This date must:
+- Reflect the date of the articles actually summarized.
+- Be derived from the content, article metadata, or the digest_date passed into the prompt (if that value has already been corrected upstream).
+
+**Rule B — The UI "Latest Digest – <date>" header must be removed entirely.**
+
+The UI should no longer display its own date because it is producing inaccurate values.
+
+Your generated header inside the markdown will be the **only** digest date displayed.
+
+### 3. Revised output specification
+When generating a digest:
+- Start with the top-level header:
+  `# Daily News Digest – <correct date>`
+- Then continue with:  
+  **Executive Summary → Key Developments → additional sections**
+- Do not produce any second date inside the markdown.
+- Do not rely on the UI to render the date.
+
+### 4. Provide updated examples
+Show:
+- The corrected version including your restored header.
+- What the UI should display (no date in UI header; date appears only in your markdown).
+
+### 5. Implementation checklist
+- Digest always displays exactly one authoritative date.
+- That date always matches the underlying article set date.
+- No secondary UI header date appears.
+- Markdown begins with the restored digest header.
+- All other content formats remain unchanged.
+- Output is stable, predictable, and correct for all digest runs.
+
+Goal: Produce a digest system where your generated markdown header provides the single, accurate, canonical date, eliminating misleading or incorrect UI-generated dates entirely.
+
+---
+
+# Formatting of Dates Fix - Claude Opus 4.5 Promp
+
+You are assisting in debugging and correcting a deterministic news-digest generation pipeline. The pipeline consists of:
+
+1. Backend date assignment
+2. Input headline formatting
+3. System prompt template for the LLM
+4. LLM output formatting
+5. Executive Summary extraction
+6. Digest creation and storage (digest_date, created_at, summary, content)
+7. Frontend rendering
+
+A regression recently occurred during a date-mismatch fix. Instead of removing the incorrect digest, the system removed the correct one. As a result, a digest containing articles from November 30, 2025 is now labeled:
+
+    Latest Digest – Saturday, November 29, 2025
+
+The correct previous behavior was:
+
+    Latest Digest – Saturday, November 29, 2025
+    Daily News Digest – November 30, 2025
+
+Your task is to:
+- Identify the minimal change needed to restore the original behavior.
+- Confirm that **Option A (digest_date = yesterday)** remains the enforced logic.
+- Ensure that the digest_date always equals the intended “digest for yesterday,” regardless of article timestamps.
+- Ensure that no logic accidentally substitutes the article publication date or generation date into the digest header.
+- Ensure that the LLM output header always matches the digest_date passed into the system prompt.
+- Validate that no trimming, cleaning, or whitespace normalization step alters the first two lines:
+    # Daily News Digest – {digest_date}
+    **Executive Summary:** …
+- Audit for any source of newline insertion, backspace characters, stray whitespace, or markdown formatting anomalies, especially near the Executive Summary and the first bullet of the first category.
+- Ensure that summary extraction does not mutate or remove the digest header lines.
+- Verify that the system can safely “swap back” to the correct digest without introducing duplicates or overwriting legitimate digests.
+
+Context and artifacts for analysis include:
+- The system prompt controlling digest formatting.
+- The function that formats headlines into category sections.
+- The summary extraction logic using regular expressions.
+- The digest_date defaulting behavior (date.today() - 1 day).
+- The database schema containing digest_date and created_at.
+- An example of a digest showing the formatting bug (the content provided in this prompt).
+- An example of correct prior output showing proper date alignment.
+
+Using the above, produce a concrete, step-by-step correction plan:
+1. Identify the exact cause of the regression.
+2. State the required changes to restore Option A behavior.
+3. Provide specific code corrections (fully rewritten functions or blocks).
+4. Provide a one-time remediation procedure to remove the incorrect digest and restore the correct one.
+5. Provide safeguards to prevent the system from accidentally reversing digest order in future runs.
+6. Validate final pipeline consistency by walking through a hypothetical generation cycle (system date Nov 30 → digest_date Nov 29 → NewsAPI returns Nov 30 headlines → digest must still say Nov 29).
+
+All code blocks must be returned using only a single triple-backtick delimiter (no internal triple-backtick blocks). Output your final answer as a single markdown file.

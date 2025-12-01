@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { getDigests, getLatestDigest } from '@/lib/api';
+import { renderPreview } from '@/lib/markdown';
 import type { DigestSummary, DigestDetail } from '@/lib/types';
 import { Newspaper, Loader2, Calendar, ExternalLink } from 'lucide-react';
 
@@ -87,13 +88,7 @@ export default function DigestPage() {
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-semibold flex items-center gap-2">
                             <Calendar className="h-5 w-5 text-primary" />
-                            Latest Digest -{' '}
-                            {new Date(latestDigest.digest_date).toLocaleDateString('en-US', {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                            })}
+                            Latest Digest
                         </h2>
                         <Link href={`/digest/view?id=${latestDigest.id}`}>
                             <Button variant="outline" size="sm">
@@ -104,29 +99,12 @@ export default function DigestPage() {
 
                     <Card>
                         <CardContent className="pt-6">
-                            {/* Summary */}
-                            {latestDigest.summary && (
-                                <div className="mb-6 p-4 bg-muted rounded-lg">
-                                    <h3 className="font-semibold mb-2">Summary</h3>
-                                    <p className="text-muted-foreground">{latestDigest.summary}</p>
-                                </div>
-                            )}
-
                             {/* Content Preview */}
                             <div className="prose max-w-none">
                                 <div
                                     className="line-clamp-[20]"
                                     dangerouslySetInnerHTML={{
-                                        __html: latestDigest.content
-                                            .split('\n')
-                                            .slice(0, 30)
-                                            .join('\n')
-                                            .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-                                            .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-                                            .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-                                            .replace(/\*\*(.*)\*\*/gim, '<strong>$1</strong>')
-                                            .replace(/\*(.*)\*/gim, '<em>$1</em>')
-                                            .replace(/\n/g, '<br />'),
+                                        __html: renderPreview(latestDigest.content, 30),
                                     }}
                                 />
                             </div>
@@ -197,7 +175,7 @@ export default function DigestPage() {
                                             <div className="flex items-start justify-between">
                                                 <div>
                                                     <CardTitle className="text-lg">
-                                                        {new Date(digest.digest_date).toLocaleDateString(
+                                                        {new Date(digest.digest_date + 'T00:00:00').toLocaleDateString(
                                                             'en-US',
                                                             {
                                                                 weekday: 'long',

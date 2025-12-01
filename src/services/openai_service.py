@@ -25,11 +25,12 @@ Guidelines:
 4. Highlight connections between related stories when relevant
 5. Use Markdown formatting for structure (headers, bullet points)
 6. Keep the total digest between 600-1000 words
-7. Start with a brief executive summary (2-3 sentences)
+7. Start with the digest header, then a brief executive summary (2-3 sentences)
 8. End with a "Key Takeaways" section with 3-5 bullet points
 
 Format the digest as follows:
-# Daily News Digest - [Date]
+
+# Daily News Digest – [Date provided in prompt]
 
 **Executive Summary:** [Brief overview]
 
@@ -45,6 +46,8 @@ Format the digest as follows:
 - [Takeaway 1]
 - [Takeaway 2]
 ...
+
+IMPORTANT: Use the exact date provided in the user prompt for the header. Format it as: Month Day, Year (e.g., November 30, 2025).
 """
 
 
@@ -127,10 +130,11 @@ class OpenAIService:
         """
         if not headlines:
             logger.warning("No headlines provided for digest generation")
+            # digest_date is already formatted as "Month Day, Year"
             return {
-                "content": f"# Daily News Digest - {digest_date}\n\nNo news articles available for today's digest.",
+                "content": f"# Daily News Digest – {digest_date}\n\n**Executive Summary:** No news articles available for today's digest.\n\n## Key Takeaways\n- No news articles were available for the selected interests.",
                 "summary": "No news available",
-                "word_count": 10,
+                "word_count": 20,
             }
 
         # Format headlines for the prompt
@@ -206,13 +210,26 @@ Create a cohesive, well-written digest following the guidelines provided."""
         Returns:
             Brief summary string.
         """
+        import re
+        
         # Try to find executive summary
         lines = content.split("\n")
         for i, line in enumerate(lines):
             if "executive summary" in line.lower() or line.startswith("**Executive"):
                 # Get the next non-empty line
                 for next_line in lines[i:i + 3]:
-                    clean_line = next_line.strip().strip("*").strip()
+                    # Remove markdown bold markers and common prefixes
+                    clean_line = next_line.strip()
+                    # Remove **Executive Summary:** or similar patterns
+                    clean_line = re.sub(
+                        r'^\*{0,2}(Executive\s+Summary:?\s*)\*{0,2}\s*',
+                        '',
+                        clean_line,
+                        flags=re.IGNORECASE
+                    )
+                    # Remove any remaining leading/trailing asterisks
+                    clean_line = clean_line.strip("*").strip()
+                    
                     if clean_line and not clean_line.startswith("#"):
                         if len(clean_line) > max_length:
                             return clean_line[:max_length].rsplit(" ", 1)[0] + "..."
@@ -221,6 +238,8 @@ Create a cohesive, well-written digest following the guidelines provided."""
         # Fallback: use first substantial paragraph
         for line in lines:
             clean_line = line.strip()
+            # Remove any markdown bold markers
+            clean_line = re.sub(r'\*{2}([^*]+)\*{2}', r'\1', clean_line)
             if (
                 clean_line
                 and not clean_line.startswith("#")

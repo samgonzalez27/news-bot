@@ -246,7 +246,7 @@ export default function DashboardPage() {
                                 <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-lg">
-                                            {new Date(digest.digest_date).toLocaleDateString(
+                                            {new Date(digest.digest_date + 'T00:00:00').toLocaleDateString(
                                                 'en-US',
                                                 {
                                                     weekday: 'long',

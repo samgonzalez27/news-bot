@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { getDigest } from '@/lib/api';
+import { renderFullContent } from '@/lib/markdown';
 import type { DigestDetail } from '@/lib/types';
 import {
     Loader2,
@@ -125,20 +126,6 @@ function DigestDetailContent() {
         );
     }
 
-    // Simple markdown to HTML conversion
-    const renderContent = (content: string) => {
-        return content
-            .replace(/^### (.*$)/gim, '<h3 class="text-xl font-medium mb-2 mt-4 text-foreground">$1</h3>')
-            .replace(/^## (.*$)/gim, '<h2 class="text-2xl font-semibold mb-3 mt-6 text-foreground">$1</h2>')
-            .replace(/^# (.*$)/gim, '<h1 class="text-3xl font-bold mb-4 mt-8 text-foreground">$1</h1>')
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.*?)\*/g, '<em>$1</em>')
-            .replace(/^\- (.*$)/gim, '<li class="ml-4 text-muted-foreground">$1</li>')
-            .replace(/^\d+\. (.*$)/gim, '<li class="ml-4 text-muted-foreground list-decimal">$1</li>')
-            .replace(/\n\n/g, '</p><p class="mb-4 leading-relaxed text-muted-foreground">')
-            .replace(/\n/g, '<br />');
-    };
-
     return (
         <div className="container py-8 max-w-4xl">
             {/* Navigation */}
@@ -151,19 +138,8 @@ function DigestDetailContent() {
                 </Link>
             </div>
 
-            {/* Header */}
+            {/* Header - word count and read time only, date is in the markdown content */}
             <div className="mb-8">
-                <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                    <Calendar className="h-4 w-4" />
-                    <time dateTime={digest.digest_date}>
-                        {new Date(digest.digest_date).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                        })}
-                    </time>
-                </div>
                 <h1 className="text-3xl font-bold mb-4">Your Daily News Digest</h1>
                 <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                     {digest.word_count && (
@@ -193,27 +169,13 @@ function DigestDetailContent() {
                 </div>
             </div>
 
-            {/* Summary Card */}
-            {digest.summary && (
-                <Card className="mb-8 bg-muted/50">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg">Quick Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground leading-relaxed">
-                            {digest.summary}
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
-
             {/* Main Content */}
             <Card className="mb-8">
                 <CardContent className="pt-6">
                     <article
                         className="prose max-w-none"
                         dangerouslySetInnerHTML={{
-                            __html: `<p class="mb-4 leading-relaxed text-muted-foreground">${renderContent(digest.content)}</p>`,
+                            __html: renderFullContent(digest.content),
                         }}
                     />
                 </CardContent>
