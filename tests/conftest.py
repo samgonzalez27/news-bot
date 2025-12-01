@@ -152,7 +152,7 @@ async def override_seeded_db(seeded_db: AsyncSession):
 
 
 @pytest.fixture
-def client(override_settings, override_seeded_db) -> TestClient:
+def client(override_settings, override_seeded_db) -> Generator[TestClient, None, None]:
     """Create synchronous test client with seeded database."""
     real_app = app._get_app()
     # Reset rate limiters to avoid 429 errors from previous tests
@@ -163,7 +163,7 @@ def client(override_settings, override_seeded_db) -> TestClient:
 
 
 @pytest.fixture
-def client_no_seed(override_settings, override_db) -> TestClient:
+def client_no_seed(override_settings, override_db) -> Generator[TestClient, None, None]:
     """Create synchronous test client without seeded interests."""
     real_app = app._get_app()
     # Reset rate limiters to avoid 429 errors from previous tests
