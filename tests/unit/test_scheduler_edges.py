@@ -247,9 +247,11 @@ class TestDigestGenerationJobWrapper:
 
     def test_creates_async_task(self):
         """Should create an async task."""
-        with patch("asyncio.create_task") as mock_create_task:
-            digest_generation_job()
-            mock_create_task.assert_called_once()
+        with patch("src.scheduler.jobs.process_digest_generation") as mock_process:
+            mock_process.return_value = None  # Prevent coroutine creation
+            with patch("asyncio.create_task") as mock_create_task:
+                digest_generation_job()
+                mock_create_task.assert_called_once()
 
 
 class TestScheduleDigestJobs:
@@ -267,6 +269,10 @@ class TestScheduleDigestJobs:
                 call_kwargs = mock_add_job.call_args[1]
                 assert call_kwargs["id"] == "digest_generation"
                 assert call_kwargs["minutes"] == 15
+                
+                # Verify the func argument is the sync wrapper
+                call_args = mock_add_job.call_args[0]
+                assert call_args[0] == digest_generation_job
 
 
 class TestSeedInterestsOnStartup:
