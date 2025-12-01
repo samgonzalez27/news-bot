@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -7,9 +10,81 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Newspaper, Zap, Target, Clock } from 'lucide-react';
+import { Newspaper, Zap, Target, Clock, LayoutDashboard, Loader2 } from 'lucide-react';
 
 export default function HomePage() {
+    const { isAuthenticated, isLoading } = useAuth();
+
+    // Hero section buttons based on auth state
+    const renderHeroButtons = () => {
+        if (isLoading) {
+            return (
+                <div className="flex items-center justify-center gap-x-4">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+            );
+        }
+
+        if (isAuthenticated) {
+            return (
+                <div className="flex items-center justify-center gap-x-4">
+                    <Link href="/dashboard">
+                        <Button size="lg" className="gap-2">
+                            <LayoutDashboard className="h-4 w-4" />
+                            Go to Dashboard
+                        </Button>
+                    </Link>
+                    <Link href="/digest">
+                        <Button variant="outline" size="lg" className="gap-2">
+                            <Newspaper className="h-4 w-4" />
+                            View Digests
+                        </Button>
+                    </Link>
+                </div>
+            );
+        }
+
+        return (
+            <div className="flex items-center justify-center gap-x-4">
+                <Link href="/register">
+                    <Button size="lg" className="gap-2">
+                        <Zap className="h-4 w-4" />
+                        Start Free
+                    </Button>
+                </Link>
+                <Link href="/login">
+                    <Button variant="outline" size="lg">
+                        Sign In
+                    </Button>
+                </Link>
+            </div>
+        );
+    };
+
+    // CTA section based on auth state
+    const renderCTASection = () => {
+        if (isAuthenticated) {
+            return (
+                <div className="mt-8">
+                    <Link href="/dashboard">
+                        <Button size="lg" className="gap-2">
+                            <LayoutDashboard className="h-4 w-4" />
+                            Go to Dashboard
+                        </Button>
+                    </Link>
+                </div>
+            );
+        }
+
+        return (
+            <div className="mt-8">
+                <Link href="/register">
+                    <Button size="lg">Create Your Account</Button>
+                </Link>
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-col">
             {/* Hero Section */}
@@ -25,18 +100,8 @@ export default function HomePage() {
                             and receive curated daily summaries that matter to you. Stay
                             informed without the noise.
                         </p>
-                        <div className="mt-10 flex items-center justify-center gap-x-4">
-                            <Link href="/register">
-                                <Button size="lg" className="gap-2">
-                                    <Zap className="h-4 w-4" />
-                                    Start Free
-                                </Button>
-                            </Link>
-                            <Link href="/login">
-                                <Button variant="outline" size="lg">
-                                    Sign In
-                                </Button>
-                            </Link>
+                        <div className="mt-10">
+                            {renderHeroButtons()}
                         </div>
                     </div>
                 </div>
@@ -124,17 +189,14 @@ export default function HomePage() {
                             <Newspaper className="h-8 w-8 text-primary" />
                         </div>
                         <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                            Ready to stay informed?
+                            {isAuthenticated ? 'Your digest awaits!' : 'Ready to stay informed?'}
                         </h2>
                         <p className="mt-4 text-muted-foreground">
-                            Join thousands of readers who trust NewsDigest for their daily
-                            news updates.
+                            {isAuthenticated
+                                ? 'Generate your personalized news digest now.'
+                                : 'Join thousands of readers who trust NewsDigest for their daily news updates.'}
                         </p>
-                        <div className="mt-8">
-                            <Link href="/register">
-                                <Button size="lg">Create Your Account</Button>
-                            </Link>
-                        </div>
+                        {renderCTASection()}
                     </div>
                 </div>
             </section>
