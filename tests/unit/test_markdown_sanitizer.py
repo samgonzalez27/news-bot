@@ -2,7 +2,6 @@
 Unit tests for markdown sanitizer utility.
 """
 
-import pytest
 from src.utils.markdown_sanitizer import (
     sanitize_markdown,
     sanitize_headline_field,
