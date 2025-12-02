@@ -883,3 +883,74 @@ Using the above, produce a concrete, step-by-step correction plan:
 6. Validate final pipeline consistency by walking through a hypothetical generation cycle (system date Nov 30 → digest_date Nov 29 → NewsAPI returns Nov 30 headlines → digest must still say Nov 29).
 
 All code blocks must be returned using only a single triple-backtick delimiter (no internal triple-backtick blocks). Output your final answer as a single markdown file.
+
+---
+
+# Front-end /Register Page Fix - Claude Prompt
+
+You are helping diagnose and fix defects in a Next.js + FastAPI application’s /register workflow. The registration page shows inconsistent and misleading error notifications when creating the first user in a clean environment (fresh Docker container with no volumes). Your task is to identify the root cause and propose professional, production-grade fixes.
+
+Observed issues:
+
+1. When a new user registers (all fields correct), the client displays:
+   "Registration failed – [object Object]"
+   even though the request succeeds or partially succeeds.
+2. In other cases, the UI displays:
+   "Registration failed – Account created! go to the login page to login"
+   even though the backend actually created the account successfully.
+3. These issues occur primarily for the first user created in a clean environment.
+4. Once the first user exists, creating a second user:
+   - Does not show erroneous notifications
+   - Automatically logs the user in and sends them directly to the dashboard, bypassing /login (unexpected behavior depending on design)
+   - Suggests inconsistent response handling, race conditions, or improper auth-session creation logic after registration.
+
+Your objectives:
+
+1. Identify the root cause(s). Evaluate all plausible failure points:
+   - Backend /register API response shape, status codes, and error-handling conventions
+   - Frontend fetch/axios wrapper error parsing logic
+   - JSON vs. non-JSON error payloads
+   - Cases where the API returns 200 or 201 but includes an “error” structure
+   - Next.js server action or client-side mutation logic that incorrectly treats success as failure
+   - First-boot initialization behavior (e.g., first user becomes admin, triggers unique auth path, DB migrations not fully applied on first request, race conditions on DB creation)
+   - Session or token logic that automatically creates a session on registration, bypassing the login page
+   - Live deployment differences between first user vs. subsequent users
+   - Any missing try/catch blocks that default to stringifying an error object → “[object Object]”
+
+2. For every identified root cause, propose the exact fix:
+   - Update to backend response model (success response must be stable, deterministic, and JSON-only)
+   - Update to frontend error handling to properly distinguish:
+       * Network failures
+       * Validation failures
+       * Backend business-logic failures
+       * Actual successes
+   - Remove any ambiguous “message” fields that mix success and failure in the same shape
+   - Add explicit success branch and explicit redirect behavior
+   - Prevent auto-login unless explicitly intended
+   - Ensure the first-user creation path follows the same code as all later users
+
+3. Provide a complete troubleshooting process:
+   - Reproduce in a clean environment
+   - Log raw backend responses (status, body, headers)
+   - Log the frontend’s parsed error/success payload
+   - Confirm whether the frontend’s `catch(error)` path is triggered due to a non-2xx code or an exception during JSON parsing
+   - Confirm DB initialization timing and user-creation constraints
+
+4. Provide all corrected code (frontend + backend) in a single triple-backtick block:
+   - Corrected /register API route handler
+   - Corrected status codes and return shapes
+   - Corrected frontend submit handler with explicit branching and no ambiguous parsing paths
+   - Corrected redirect behavior
+   - Optional: a minimal testing script demonstrating correct behavior in a fresh container
+
+5. Include a final section describing validation steps:
+   - Test plan for creating the first user in a clean container
+   - Test plan for creating subsequent users
+   - Verification that no erroneous notifications ever appear
+   - Verification that auto-login occurs only if intended by specification
+
+Deliverables:
+- Root cause analysis
+- Professional-grade fixes
+- Updated code
+- A clear test/validation plan
