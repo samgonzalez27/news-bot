@@ -42,7 +42,8 @@ class TestAuthRouterFullCoverage:
                 "password": "SecurePass123",
                 "full_name": "New User",
                 "preferred_time": "08:00",
-                "timezone": "UTC",
+                # NOTE: timezone field disabled - all users use UTC
+                # "timezone": "UTC",
             },
         )
         assert response.status_code == 201
@@ -625,6 +626,8 @@ class TestUserRouterFullCoverage:
         assert response.status_code == 200
         assert response.json()["preferred_time"] == "18:00"
 
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     @pytest.mark.asyncio
     async def test_update_preferences_timezone(
         self,
@@ -640,6 +643,8 @@ class TestUserRouterFullCoverage:
         assert response.status_code == 200
         assert response.json()["timezone"] == "America/Los_Angeles"
 
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     @pytest.mark.asyncio
     async def test_update_preferences_invalid_timezone(
         self,

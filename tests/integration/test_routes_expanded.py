@@ -207,6 +207,8 @@ class TestUserRouterExpanded:
         data = response.json()
         assert data["full_name"] == "Updated Name"
     
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     def test_update_profile_invalid_timezone(self, client, auth_token):
         """Should return 422 for invalid timezone."""
         response = client.patch(

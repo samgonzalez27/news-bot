@@ -2,6 +2,7 @@
 Integration tests for user routes.
 """
 
+import pytest
 from fastapi import status
 
 
@@ -193,6 +194,8 @@ class TestUpdatePreferences:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["preferred_time"] == "18:30"
 
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     def test_update_timezone(self, client):
         """Should update timezone."""
         # Setup
@@ -223,6 +226,8 @@ class TestUpdatePreferences:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["timezone"] == "America/New_York"
 
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     def test_update_invalid_timezone(self, client):
         """Should reject invalid timezone."""
         # Setup

@@ -2,6 +2,7 @@
 Integration tests for authentication routes.
 """
 
+import pytest
 from fastapi import status
 
 
@@ -17,7 +18,8 @@ class TestRegisterEndpoint:
                 "password": "SecurePass123",
                 "full_name": "New User",
                 "preferred_time": "09:00",
-                "timezone": "UTC",
+                # NOTE: timezone field disabled - all users use UTC
+                # "timezone": "UTC",
             },
         )
 
@@ -67,6 +69,8 @@ class TestRegisterEndpoint:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     def test_register_invalid_timezone(self, client):
         """Should reject invalid timezone."""
         response = client.post(

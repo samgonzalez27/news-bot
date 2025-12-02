@@ -30,7 +30,8 @@ class TestCompleteUserJourney:
                 "password": "SecurePass123",
                 "full_name": "Journey User",
                 "preferred_time": "07:00",
-                "timezone": "America/Los_Angeles",
+                # NOTE: timezone field disabled - all users use UTC
+                # "timezone": "America/Los_Angeles",
             },
         )
         assert register_response.status_code == status.HTTP_201_CREATED
@@ -147,7 +148,8 @@ class TestPreferencesFlow:
                 "password": "SecurePass123",
                 "full_name": "Prefs Flow",
                 "preferred_time": "08:00",
-                "timezone": "UTC",
+                # NOTE: timezone field disabled - all users use UTC
+                # "timezone": "UTC",
             },
         )
         login_response = client.post(
@@ -166,18 +168,19 @@ class TestPreferencesFlow:
             headers=headers,
             json={
                 "preferred_time": "19:30",
-                "timezone": "Europe/London",
+                # NOTE: timezone field disabled - all users use UTC
+                # "timezone": "Europe/London",
             },
         )
         assert update_response.status_code == status.HTTP_200_OK
         data = update_response.json()
         assert data["preferred_time"] == "19:30"
-        assert data["timezone"] == "Europe/London"
+        # assert data["timezone"] == "Europe/London"  # timezone disabled
 
         # Verify changes persisted
         profile = client.get("/api/v1/users/me", headers=headers).json()
         assert profile["preferred_time"] == "19:30"
-        assert profile["timezone"] == "Europe/London"
+        # assert profile["timezone"] == "Europe/London"  # timezone disabled
 
 
 class TestDigestHistoryFlow:

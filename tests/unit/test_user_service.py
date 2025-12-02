@@ -258,11 +258,12 @@ class TestUpdatePreferences:
         with patch.object(service, "get_by_id", return_value=mock_user):
             result = await service.update_preferences(
                 user_id,
-                UserPreferencesUpdate(preferred_time="18:30", timezone="America/New_York"),
+                # NOTE: timezone field disabled - all users use UTC
+                UserPreferencesUpdate(preferred_time="18:30"),
             )
         
         assert result.preferred_time == time(18, 30)
-        assert result.timezone == "America/New_York"
+        # assert result.timezone == "America/New_York"  # timezone disabled
 
 
 class TestDeactivateUser:

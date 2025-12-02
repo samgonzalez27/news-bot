@@ -271,12 +271,14 @@ class TestUserRouterCoverage:
         response = await async_client.patch(
             "/api/v1/users/me/preferences",
             headers=auth_headers,
-            json={"preferred_time": "09:00", "timezone": "America/New_York"},
+            json={"preferred_time": "09:00"},
+            # NOTE: timezone field disabled - all users use UTC
+            # json={"preferred_time": "09:00", "timezone": "America/New_York"},
         )
         assert response.status_code == 200
         data = response.json()
         assert data["preferred_time"] == "09:00"
-        assert data["timezone"] == "America/New_York"
+        # assert data["timezone"] == "America/New_York"  # timezone disabled
 
     @pytest.mark.asyncio
     async def test_deactivate_account(

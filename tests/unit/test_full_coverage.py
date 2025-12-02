@@ -772,6 +772,8 @@ class TestSchemaValidatorsCoverage:
             )
         assert "HH:MM" in str(exc_info.value)
 
+    # NOTE: Timezone support disabled - test skipped
+    @pytest.mark.skip(reason="Timezone support disabled - all users use UTC")
     def test_user_create_invalid_timezone(self):
         """Test timezone validation."""
         from src.schemas.user import UserCreate
@@ -786,16 +788,18 @@ class TestSchemaValidatorsCoverage:
             )
         assert "timezone" in str(exc_info.value).lower()
 
+    # NOTE: Timezone support disabled - test modified
     def test_user_preferences_update_none_values(self):
         """Test preferences update with None values passes validation."""
         from src.schemas.user import UserPreferencesUpdate
 
         prefs = UserPreferencesUpdate(
             preferred_time=None,
-            timezone=None,
+            # NOTE: timezone field disabled
+            # timezone=None,
         )
         assert prefs.preferred_time is None
-        assert prefs.timezone is None
+        # assert prefs.timezone is None  # timezone disabled
 
     def test_user_response_time_formatting(self):
         """Test UserResponse formats time object to string."""
@@ -808,7 +812,8 @@ class TestSchemaValidatorsCoverage:
             "email": "test@example.com",
             "full_name": "Test",
             "preferred_time": time_type(8, 30),  # time object
-            "timezone": "UTC",
+            # NOTE: timezone field disabled - all users use UTC
+            # "timezone": "UTC",
             "is_active": True,
             "interests": [],
             "created_at": datetime.now(tz.utc),

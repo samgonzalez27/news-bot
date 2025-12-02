@@ -188,7 +188,8 @@ async def test_user(seeded_db: AsyncSession) -> User:
         email="test@example.com",
         hashed_password=AuthService.hash_password("TestPassword123"),
         full_name="Test User",
-        timezone="UTC",
+        # NOTE: timezone field disabled - all users use UTC
+        # timezone="UTC",
         is_active=True,
     )
     seeded_db.add(user)
@@ -208,7 +209,8 @@ async def test_user_with_interests(seeded_db: AsyncSession) -> User:
         email="test.interests@example.com",
         hashed_password=AuthService.hash_password("TestPassword123"),
         full_name="Test User With Interests",
-        timezone="America/New_York",
+        # NOTE: timezone field disabled - all users use UTC
+        # timezone="America/New_York",
         is_active=True,
     )
     seeded_db.add(user)
