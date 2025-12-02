@@ -140,7 +140,8 @@ async def update_user_interests(
         "email": current_user.email,
         "full_name": current_user.full_name,
         "preferred_time": current_user.preferred_time,
-        "timezone": current_user.timezone,
+        # NOTE: timezone field disabled - all users use UTC
+        # "timezone": current_user.timezone,
         "is_active": current_user.is_active,
         "interests": [InterestSummary.model_validate(i) for i in updated_interests],
         "created_at": current_user.created_at,

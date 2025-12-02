@@ -59,7 +59,8 @@ class UserService:
             hashed_password=AuthService.hash_password(user_data.password),
             full_name=user_data.full_name,
             preferred_time=preferred_time,
-            timezone=user_data.timezone,
+            # NOTE: Timezone support disabled - all users use UTC
+            # timezone=user_data.timezone,
         )
 
         self.db.add(user)
@@ -170,8 +171,9 @@ class UserService:
         if preferences.preferred_time is not None:
             user.preferred_time = time.fromisoformat(preferences.preferred_time)
 
-        if preferences.timezone is not None:
-            user.timezone = preferences.timezone
+        # NOTE: Timezone support disabled - all users use UTC
+        # if preferences.timezone is not None:
+        #     user.timezone = preferences.timezone
 
         await self.db.flush()
         await self.db.refresh(user)

@@ -34,14 +34,16 @@ class UserCreate(BaseModel):
     )
     preferred_time: str = Field(
         default="08:00",
-        description="Preferred digest delivery time in HH:MM format",
+        description="Preferred digest delivery time in HH:MM format (UTC)",
         examples=["08:00", "18:30"],
     )
-    timezone: str = Field(
-        default="UTC",
-        description="User's timezone (IANA format)",
-        examples=["UTC", "America/New_York", "Europe/London"],
-    )
+    # NOTE: Timezone support disabled - all users use UTC
+    # Uncomment to re-enable custom timezone support
+    # timezone: str = Field(
+    #     default="UTC",
+    #     description="User's timezone (IANA format)",
+    #     examples=["UTC", "America/New_York", "Europe/London"],
+    # )
 
     @field_validator("password")
     @classmethod
@@ -63,17 +65,19 @@ class UserCreate(BaseModel):
             raise ValueError("Time must be in HH:MM format")
         return v
 
-    @field_validator("timezone")
-    @classmethod
-    def validate_timezone(cls, v: str) -> str:
-        """Validate timezone is a valid IANA timezone."""
-        try:
-            import zoneinfo
-
-            zoneinfo.ZoneInfo(v)
-        except Exception:
-            raise ValueError(f"Invalid timezone: {v}")
-        return v
+    # NOTE: Timezone support disabled - all users use UTC
+    # Uncomment to re-enable custom timezone support
+    # @field_validator("timezone")
+    # @classmethod
+    # def validate_timezone(cls, v: str) -> str:
+    #     """Validate timezone is a valid IANA timezone."""
+    #     try:
+    #         import zoneinfo
+    #
+    #         zoneinfo.ZoneInfo(v)
+    #     except Exception:
+    #         raise ValueError(f"Invalid timezone: {v}")
+    #     return v
 
 
 class UserUpdate(BaseModel):
@@ -98,14 +102,16 @@ class UserPreferencesUpdate(BaseModel):
 
     preferred_time: Optional[str] = Field(
         None,
-        description="Preferred digest delivery time in HH:MM format",
+        description="Preferred digest delivery time in HH:MM format (UTC)",
         examples=["08:00", "18:30"],
     )
-    timezone: Optional[str] = Field(
-        None,
-        description="User's timezone (IANA format)",
-        examples=["UTC", "America/New_York"],
-    )
+    # NOTE: Timezone support disabled - all users use UTC
+    # Uncomment to re-enable custom timezone support
+    # timezone: Optional[str] = Field(
+    #     None,
+    #     description="User's timezone (IANA format)",
+    #     examples=["UTC", "America/New_York"],
+    # )
 
     @field_validator("preferred_time")
     @classmethod
@@ -118,18 +124,20 @@ class UserPreferencesUpdate(BaseModel):
                 raise ValueError("Time must be in HH:MM format")
         return v
 
-    @field_validator("timezone")
-    @classmethod
-    def validate_timezone(cls, v: Optional[str]) -> Optional[str]:
-        """Validate timezone is a valid IANA timezone."""
-        if v is not None:
-            try:
-                import zoneinfo
-
-                zoneinfo.ZoneInfo(v)
-            except Exception:
-                raise ValueError(f"Invalid timezone: {v}")
-        return v
+    # NOTE: Timezone support disabled - all users use UTC
+    # Uncomment to re-enable custom timezone support
+    # @field_validator("timezone")
+    # @classmethod
+    # def validate_timezone(cls, v: Optional[str]) -> Optional[str]:
+    #     """Validate timezone is a valid IANA timezone."""
+    #     if v is not None:
+    #         try:
+    #             import zoneinfo
+    #
+    #             zoneinfo.ZoneInfo(v)
+    #         except Exception:
+    #             raise ValueError(f"Invalid timezone: {v}")
+    #     return v
 
     model_config = {"extra": "forbid"}
 
@@ -150,8 +158,10 @@ class UserResponse(BaseModel):
     id: UUID = Field(..., description="Unique user identifier")
     email: str = Field(..., description="User's email address")
     full_name: str = Field(..., description="User's full name")
-    preferred_time: str = Field(..., description="Preferred digest delivery time")
-    timezone: str = Field(..., description="User's timezone")
+    preferred_time: str = Field(..., description="Preferred digest delivery time (UTC)")
+    # NOTE: Timezone support disabled - all users use UTC
+    # Uncomment to re-enable custom timezone support
+    # timezone: str = Field(..., description="User's timezone")
     is_active: bool = Field(..., description="Whether the account is active")
     interests: List[InterestSummary] = Field(
         default_factory=list,
@@ -168,7 +178,7 @@ class UserResponse(BaseModel):
                 "email": "user@example.com",
                 "full_name": "John Doe",
                 "preferred_time": "08:00",
-                "timezone": "America/New_York",
+                # "timezone": "America/New_York",  # Timezone support disabled
                 "is_active": True,
                 "interests": [
                     {

@@ -47,11 +47,13 @@ class User(Base):
         default=time(8, 0),  # 08:00 AM
         index=True,
     )
-    timezone: Mapped[str] = mapped_column(
-        String(50),
-        nullable=False,
-        default="UTC",
-    )
+    # NOTE: Timezone support disabled - all users use UTC
+    # Uncomment to re-enable custom timezone support
+    # timezone: Mapped[str] = mapped_column(
+    #     String(50),
+    #     nullable=False,
+    #     default="UTC",
+    # )
     is_active: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

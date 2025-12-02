@@ -26,8 +26,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     Create a new user account with email, password, and optional preferences.
     
     The password must be at least 8 characters and contain both letters and numbers.
-    The preferred_time should be in HH:MM format (24-hour).
-    The timezone should be a valid IANA timezone identifier.
+    The preferred_time should be in HH:MM format (24-hour, UTC).
     """,
     responses={
         201: {"description": "User created successfully"},
