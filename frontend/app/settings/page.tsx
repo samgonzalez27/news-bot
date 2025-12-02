@@ -1,9 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRequireAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Card,
@@ -12,55 +11,72 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { updateUserPreferences } from '@/lib/api';
-import { Loader2, Settings, Clock, Globe, Save } from 'lucide-react';
+import {
+    generateTimeOptions,
+    formatTimeFor12Hour,
+    roundToNearest15Minutes,
+} from '@/lib/timezone';
+import { Loader2, Settings, Clock, Save } from 'lucide-react';
 
-// Common timezones
-const TIMEZONES = [
-    'UTC',
-    'America/New_York',
-    'America/Chicago',
-    'America/Denver',
-    'America/Los_Angeles',
-    'Europe/London',
-    'Europe/Paris',
-    'Europe/Berlin',
-    'Asia/Tokyo',
-    'Asia/Shanghai',
-    'Asia/Singapore',
-    'Australia/Sydney',
-];
+// Pre-generate time options (memoized outside component)
+const TIME_OPTIONS = generateTimeOptions();
 
 export default function SettingsPage() {
     const { user, refreshUser, isLoading: authLoading } = useRequireAuth();
     const { toast } = useToast();
 
-    const [preferredTime, setPreferredTime] = useState(
-        user?.preferred_time || '08:00'
-    );
-    const [timezone, setTimezone] = useState(user?.timezone || 'UTC');
+    // Local state for preferred time (stored and displayed in UTC)
+    const [preferredTime, setPreferredTime] = useState<string>('08:00');
     const [isSaving, setIsSaving] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
 
-    // Update state when user loads
-    if (user && preferredTime !== user.preferred_time && !isSaving) {
-        setPreferredTime(user.preferred_time);
-    }
-    if (user && timezone !== user.timezone && !isSaving) {
-        setTimezone(user.timezone);
-    }
+    // Initialize form state from user data
+    useEffect(() => {
+        if (user && !isInitialized) {
+            if (user.preferred_time) {
+                // Round to nearest 15 minutes to match our dropdown options
+                setPreferredTime(roundToNearest15Minutes(user.preferred_time));
+            }
+            setIsInitialized(true);
+        }
+    }, [user, isInitialized]);
 
+    // Reset initialization flag if user changes (e.g., logout/login)
+    useEffect(() => {
+        if (!user) {
+            setIsInitialized(false);
+        }
+    }, [user]);
+
+    // Handle time change
+    const handleTimeChange = useCallback((newTime: string) => {
+        setPreferredTime(newTime);
+    }, []);
+
+    // Handle save
     const handleSave = async () => {
         setIsSaving(true);
+
         try {
             await updateUserPreferences({
                 preferred_time: preferredTime,
-                timezone: timezone,
+                // NOTE: timezone field removed - all users use UTC
             });
+
             await refreshUser();
+
             toast({
                 title: 'Settings saved!',
-                description: 'Your preferences have been updated.',
+                description: `Your digest will be delivered at ${formatTimeFor12Hour(preferredTime)} UTC.`,
             });
         } catch (error) {
             const message =
@@ -74,6 +90,13 @@ export default function SettingsPage() {
             setIsSaving(false);
         }
     };
+
+    // Check if there are unsaved changes
+    const hasChanges = useCallback(() => {
+        if (!user) return false;
+        const storedTime = user.preferred_time || '08:00';
+        return preferredTime !== roundToNearest15Minutes(storedTime);
+    }, [user, preferredTime]);
 
     if (authLoading) {
         return (
@@ -138,40 +161,26 @@ export default function SettingsPage() {
                         Configure when you receive your daily news digest
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
+                <CardContent className="space-y-4">
+                    {/* Time Selection */}
                     <div className="grid gap-2">
-                        <Label htmlFor="preferred_time">Preferred Delivery Time</Label>
-                        <Input
-                            id="preferred_time"
-                            type="time"
-                            value={preferredTime}
-                            onChange={(e) => setPreferredTime(e.target.value)}
-                            className="max-w-[200px]"
-                        />
+                        <Label htmlFor="preferred_time">Preferred Delivery Time (UTC)</Label>
+                        <Select value={preferredTime} onValueChange={handleTimeChange}>
+                            <SelectTrigger className="w-full max-w-[180px]" id="preferred_time">
+                                <SelectValue>
+                                    {formatTimeFor12Hour(preferredTime)}
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px]">
+                                {TIME_OPTIONS.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                        {option.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         <p className="text-sm text-muted-foreground">
-                            Your digest will be generated around this time daily
-                        </p>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="timezone" className="flex items-center gap-2">
-                            <Globe className="h-4 w-4" />
-                            Timezone
-                        </Label>
-                        <select
-                            id="timezone"
-                            value={timezone}
-                            onChange={(e) => setTimezone(e.target.value)}
-                            className="flex h-10 w-full max-w-[300px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                            {TIMEZONES.map((tz) => (
-                                <option key={tz} value={tz}>
-                                    {tz.replace(/_/g, ' ')}
-                                </option>
-                            ))}
-                        </select>
-                        <p className="text-sm text-muted-foreground">
-                            Used to schedule your digest delivery
+                            Your digest will be generated around this time daily (UTC timezone)
                         </p>
                     </div>
                 </CardContent>
@@ -212,20 +221,31 @@ export default function SettingsPage() {
             </Card>
 
             {/* Save Button */}
-            <div className="flex justify-end">
-                <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-                    {isSaving ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Saving...
-                        </>
-                    ) : (
-                        <>
-                            <Save className="h-4 w-4" />
-                            Save Changes
-                        </>
-                    )}
-                </Button>
+            <div className="flex items-center justify-between">
+                {hasChanges() && (
+                    <p className="text-sm text-muted-foreground">
+                        You have unsaved changes
+                    </p>
+                )}
+                <div className="flex justify-end flex-1">
+                    <Button
+                        onClick={handleSave}
+                        disabled={isSaving || !hasChanges()}
+                        className="gap-2"
+                    >
+                        {isSaving ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="h-4 w-4" />
+                                Save Changes
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
         </div>
     );
