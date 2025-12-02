@@ -60,8 +60,7 @@ export default function DashboardPage() {
             });
             router.push(`/digest/${digest.id}`);
         } catch (error) {
-            const message =
-                error instanceof Error ? error.message : 'Failed to generate digest';
+            const message = error instanceof Error ? error.message : 'Failed to generate digest';
             toast({
                 title: 'Generation failed',
                 description: message,
