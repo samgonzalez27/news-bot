@@ -719,3 +719,90 @@ Deliverables:
 - Correct fix
 - Updated code/configuration
 - Validation plan
+
+---
+
+# Add Timezone and Time Back-end Logic for /settings Page - Claude Prompt
+
+You are updating the `/settings` page of a Next.js 14 (App Router) application. Your task is to fully implement and fix the **Digest Delivery** card, which is currently non-functional and visually inconsistent with the rest of the app.
+
+Your objective is to professionally repair and complete this feature end-to-end. Follow these instructions precisely.
+
+===================================================
+PROJECT CONTEXT
+===================================================
+The Digest Delivery section currently has:
+- A **Preferred Delivery Time** time-picker dropdown  
+- A **Timezone** dropdown listing IANA timezones  
+- A **Save Changes** button  
+
+Current problems:
+1. **Neither dropdown works.**  
+   Selecting a timezone does not update state.  
+   Selecting a time does not update state.
+
+2. **Nothing is persisted.**  
+   Changing the dropdowns does NOT make any API call, even after clicking Save.
+
+3. **Styling does not match the rest of the UI.**  
+   The time-picker and timezone dropdown are basic, unstyled, and visually disconnected.
+
+4. **Expected behavior is simple and minimal:**  
+   • Users may freely change the time or timezone.  
+   • **No API calls are made until the user clicks “Save Changes.”**  
+   • When Save is clicked, the frontend must send ONE PATCH request:  
+
+     PATCH /users/me/preferences
+     Content-Type: application/json  
+     {
+       "preferred_time": "<HH:MM in UTC>",
+       "timezone": "America/New_York"
+     }
+
+5. **Important technical requirement:**  
+   We store `preferred_time` internally in **UTC** only.  
+   If the user selects 8:00 AM in America/Chicago, you must convert this to the correct HH:MM UTC time before PATCHing.
+
+===================================================
+YOUR TASK
+===================================================
+You must professionally diagnose and fix all root causes. Provide code and reasoning for:
+
+1. **State Management**  
+   - Ensure controlled React state for both fields.  
+   - Timezone state must update immediately on selection.  
+   - Time state must update immediately on selection.
+
+2. **Time Conversion Logic**  
+   - Convert local time → UTC HH:MM string reliably.  
+   - Avoid DST pitfalls.  
+   - Use a stable library (luxon or dayjs with timezone plugin).  
+   - Ensure the UI always shows the “local” time while the backend receives UTC.
+
+3. **API Integration**  
+   - Implement the single PATCH request fired ONLY on “Save Changes.”  
+   - Give complete Next.js App Router-compatible code for:  
+     - The component  
+     - The onSubmit handler  
+     - The fetch call  
+   - Handle both success and failure professionally.
+
+4. **Styling Improvements**  
+   - Rewrite the dropdowns so they match the app’s design system (classNames, spacing, typography).  
+   - Include hover/active/focus states.  
+   - Make the timepicker visually consistent with common UI libraries.
+
+5. **Edge Cases**  
+   - First render with existing preferences (if any).  
+   - Midnight edge cases (“12:00 AM” vs “00:00”, UTC conversion).  
+   - Invalid timezone fallback.
+
+6. **Final Output**  
+   Provide a **drop-in replacement** for the Digest Delivery card containing:
+   - Fully working JSX  
+   - Fully working time conversion logic  
+   - Fully working Save button behavior  
+   - Clean styling  
+   - Specific notes about where to integrate with our backend  
+   - Zero pseudocode  
+   - No guesses or vague statements
