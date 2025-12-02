@@ -9,46 +9,76 @@ import httpx
 from src.config import get_settings
 from src.exceptions import OpenAIError
 from src.logging_config import get_logger
+from src.utils.markdown_sanitizer import (
+    sanitize_markdown,
+    sanitize_headline_field,
+    verify_clean_markdown,
+)
 
 logger = get_logger("openai_service")
 
 # OpenAI API base URL
 OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
 
-# System prompt for digest generation
+# Hardened system prompt for digest generation
 DIGEST_SYSTEM_PROMPT = """You are an expert news analyst and writer. Your task is to create a cohesive, well-written daily news digest based on the headlines and articles provided.
 
-Guidelines:
-1. Organize the digest by topic/category
-2. Write in a professional, objective journalistic style
-3. Summarize key developments clearly and concisely
-4. Highlight connections between related stories when relevant
-5. Use Markdown formatting for structure (headers, bullet points)
-6. Keep the total digest between 600-1000 words
-7. Start with the digest header, then a brief executive summary (2-3 sentences)
-8. End with a "Key Takeaways" section with 3-5 bullet points
+CRITICAL OUTPUT REQUIREMENTS:
+- Output ONLY valid, clean Markdown text
+- Use ONLY printable ASCII characters (codes 32-126) plus standard newlines
+- NEVER output control characters, backspaces, or invisible formatting bytes
+- NEVER output zero-width spaces or other Unicode control characters
+- Use exactly two asterisks for bold (**text**) - never three or more
+- Use exactly one asterisk for italic (*text*)
+- Use a single hyphen followed by a space for bullet points (- item)
+- Use standard newlines (LF) for line breaks - never carriage returns
+- Ensure all bold/italic markers are properly balanced (opened and closed)
 
-Format the digest as follows:
+STRUCTURE REQUIREMENTS:
+1. Start with the exact header format shown below
+2. Follow with Executive Summary (2-3 sentences)
+3. Organize by topic/category using ## headers
+4. End with Key Takeaways section (3-5 bullet points)
+5. Keep total length between 600-1000 words
 
-# Daily News Digest – [Date provided in prompt]
+FORMATTING:
+- Use ## for section headers (not ### or #)
+- Use - for all bullet points (not * or numbers for bullet lists)
+- Use **text** for bold emphasis
+- Leave one blank line between sections
+- No trailing spaces on any line
 
-**Executive Summary:** [Brief overview]
+EXACT OUTPUT FORMAT:
 
-## [Category 1]
-[Content]
+# Daily News Digest – [EXACT DATE FROM USER PROMPT]
 
-## [Category 2]
-[Content]
+**Executive Summary:** [2-3 sentence overview of the day's key news]
 
-...
+## [Topic Category 1]
+
+[Paragraph summarizing related stories. Use **bold** for key terms.]
+
+- [Key point 1]
+- [Key point 2]
+
+## [Topic Category 2]
+
+[Content following same pattern]
 
 ## Key Takeaways
+
 - [Takeaway 1]
 - [Takeaway 2]
-...
+- [Takeaway 3]
 
-IMPORTANT: Use the exact date provided in the user prompt for the header. Format it as: Month Day, Year (e.g., November 30, 2025).
-"""
+CONTENT GUIDELINES:
+1. Write in a professional, objective journalistic style
+2. Summarize key developments clearly and concisely
+3. Highlight connections between related stories when relevant
+4. Focus on facts, not speculation
+5. Use the EXACT date provided in the user prompt for the header
+
+Remember: Clean, parseable Markdown only. No hidden characters. No formatting artifacts."""
 
 
 class OpenAIService:
@@ -93,17 +123,27 @@ class OpenAIService:
                 by_category[category] = []
             by_category[category].append(headline)
 
-        # Format each category
+        # Format each category with sanitized fields
         sections = []
         for category, articles in by_category.items():
-            section_lines = [f"### {category.replace('-', ' ').title()}"]
+            # Sanitize category name
+            clean_category = sanitize_headline_field(
+                category.replace('-', ' ').title(),
+                max_length=50
+            )
+            section_lines = [f"### {clean_category}"]
+            
             for article in articles[:5]:  # Limit articles per category
-                title = article.get("title", "")
-                description = article.get("description", "")
-                source = article.get("source", "")
-                section_lines.append(f"- **{title}** ({source})")
-                if description:
-                    section_lines.append(f"  {description[:200]}...")
+                # Sanitize all fields from external source
+                title = sanitize_headline_field(article.get("title", ""), max_length=200)
+                description = sanitize_headline_field(article.get("description", ""), max_length=300)
+                source = sanitize_headline_field(article.get("source", ""), max_length=50)
+                
+                if title:
+                    section_lines.append(f"- **{title}** ({source})")
+                    if description:
+                        section_lines.append(f"  {description}")
+            
             sections.append("\n".join(section_lines))
 
         return "\n\n".join(sections)
@@ -130,25 +170,33 @@ class OpenAIService:
         """
         if not headlines:
             logger.warning("No headlines provided for digest generation")
-            # digest_date is already formatted as "Month Day, Year"
+            content = (
+                f"# Daily News Digest – {digest_date}\n\n"
+                f"**Executive Summary:** No news articles available for today's digest.\n\n"
+                f"## Key Takeaways\n\n"
+                f"- No news articles were available for the selected interests."
+            )
             return {
-                "content": f"# Daily News Digest – {digest_date}\n\n**Executive Summary:** No news articles available for today's digest.\n\n## Key Takeaways\n- No news articles were available for the selected interests.",
+                "content": sanitize_markdown(content),
                 "summary": "No news available",
                 "word_count": 20,
             }
 
-        # Format headlines for the prompt
+        # Format headlines for the prompt (with sanitization)
         formatted_headlines = self._format_headlines_for_prompt(headlines)
 
-        user_prompt = f"""Please create a news digest for {digest_date} based on the following headlines and summaries.
+        # Sanitize interests list
+        clean_interests = [sanitize_headline_field(i, max_length=30) for i in interests]
 
-The user is interested in: {', '.join(interests)}
+        user_prompt = f"""Create a news digest for {digest_date} based on the following headlines and summaries.
 
-Here are today's headlines:
+The user is interested in: {', '.join(clean_interests)}
+
+Headlines:
 
 {formatted_headlines}
 
-Create a cohesive, well-written digest following the guidelines provided."""
+Create a cohesive, well-written digest following the guidelines provided. Use the exact date "{digest_date}" in the header."""
 
         try:
             response = await self.client.post(
@@ -166,8 +214,17 @@ Create a cohesive, well-written digest following the guidelines provided."""
             response.raise_for_status()
             data = response.json()
 
-            # Extract content
-            content = data["choices"][0]["message"]["content"]
+            # Extract and sanitize content
+            raw_content = data["choices"][0]["message"]["content"]
+            content = sanitize_markdown(raw_content)
+            
+            # Verify content is clean
+            verification = verify_clean_markdown(content)
+            if not verification['is_clean']:
+                logger.warning(
+                    f"Content sanitization issues detected: {verification['issues']}"
+                )
+            
             word_count = len(content.split())
 
             # Generate a brief summary (first paragraph after executive summary)
