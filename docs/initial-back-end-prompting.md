@@ -659,3 +659,63 @@ The output must be commit-ready and clean.
 4. Optional improvements to prevent recurrence.
 
 Produce the complete solution now.
+
+---
+
+# Fix CI Errors - Claude Prompt
+
+You are assisting with diagnosing and fixing continuous-integration failures in a Python project using GitHub Actions. The CI pipeline runs Ruff linting and unit tests. The workflow is currently failing due to Ruff errors. Your task is to provide a complete, professional debugging and remediation plan.
+
+Context:
+
+GitHub Actions Output:
+Annotations  
+2 errors  
+Test & Lint  
+Process completed with exit code 1.
+
+Ruff error:
+F401 (unused import)  
+File: tests/unit/test_markdown_sanitizer.py  
+Line 5  
+`pytest` imported but unused
+
+Objectives:
+
+1. Identify the root cause of the failure, including:
+   - Whether `pytest` is actually required for side-effects or markers in that test file
+   - Whether Ruff is correctly configured to allow or disallow unused imports in test files
+   - Whether a fixture, decorator, or expected exception block implicitly requires pytest
+   - Whether the test file structure incorrectly imports unused modules
+
+2. Propose the best professional fix based on project standards:
+   - Remove the unused `pytest` import if truly unnecessary
+   - Or update the test to explicitly use pytest functionality if the import is needed
+   - Or update Ruff configuration (if intentional) by:
+       * Allowing unused pytest imports in tests, OR
+       * Adding per-file ignores, OR
+       * Adding noqa annotations to the specific line
+   Choose the fix that aligns with sound engineering practices, not quick patches.
+
+3. Explain whether this Ruff error is the only reason the CI failed or if additional cascading issues may occur:
+   - Confirm if Ruff exits on first error
+   - Confirm whether subsequent tests passed or were skipped
+   - Recommend running Ruff and pytest locally to reproduce CI behavior:
+       * `ruff check .`
+       * `pytest -q`
+
+4. Provide corrected code in a triple-backtick block with the right option implemented:
+   - If removing the import, show the cleaned test file
+   - If adding usage, show the updated test
+   - If using configuration, show the updated `pyproject.toml` snippet or noqa tag
+
+5. Provide a clean, explicit validation plan:
+   - Steps to run Ruff locally and verify zero lint errors
+   - Steps to commit and push to trigger CI
+   - Expected GitHub Actions output when fixed
+
+Deliverables:
+- Root cause analysis
+- Correct fix
+- Updated code/configuration
+- Validation plan
