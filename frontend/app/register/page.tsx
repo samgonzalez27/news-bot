@@ -111,23 +111,28 @@ export default function RegisterPage() {
                 full_name: formData.full_name.trim(),
             });
 
-            // Only show toast and navigate if component is still mounted
-            if (mounted) {
-                console.log('[Register] Registration successful, navigating to interests');
-                toast({
-                    title: 'Account created!',
-                    description: 'Welcome to NewsDigest. Let\'s set up your interests.',
-                    variant: 'default',
-                });
-                router.push('/interests');
-            }
+            // Only proceed if component is still mounted
+            if (!mounted) return;
+
+            // Registration successful - redirect to login page
+            // No toast shown on success (clean UX like jd2001's experience)
+            console.log('[Register] Registration successful, redirecting to login');
+            router.push('/login');
         } catch (error) {
             console.error('[Register] Registration error:', error);
 
             // Only show toast if component is still mounted
             if (mounted) {
-                const message =
-                    error instanceof Error ? error.message : 'Registration failed. Please try again.';
+                let message = 'Registration failed. Please try again.';
+
+                if (error instanceof Error) {
+                    message = error.message;
+                } else if (typeof error === 'object' && error !== null) {
+                    // Handle case where error might be an object with detail property
+                    const errorObj = error as { detail?: string; message?: string };
+                    message = errorObj.detail || errorObj.message || message;
+                }
+
                 toast({
                     title: 'Registration failed',
                     description: message,

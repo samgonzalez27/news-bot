@@ -15,6 +15,7 @@ import {
     login as apiLogin,
     register as apiRegister,
     getCurrentUser,
+    ApiRequestError,
 } from '@/lib/api';
 import type { User, LoginRequest, RegisterRequest } from '@/lib/types';
 
@@ -67,36 +68,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setUser(userData);
     }, []);
 
-    const register = useCallback(async (data: RegisterRequest) => {
+    const register = useCallback(async (data: RegisterRequest): Promise<void> => {
         console.log('[Auth] register: starting registration');
 
-        // Step 1: Register the user
         try {
             await apiRegister(data);
-            console.log('[Auth] register: registration API call succeeded');
+            console.log('[Auth] register: registration successful');
+            // Registration successful - caller will handle redirect to login
         } catch (regError) {
-            console.error('[Auth] register: registration API call failed', regError);
-            throw regError; // Re-throw with original error
-        }
+            console.error('[Auth] register: registration failed', regError);
 
-        // Step 2: Auto-login after successful registration
-        try {
-            console.log('[Auth] register: auto-login starting');
-            const response = await apiLogin({
-                email: data.email,
-                password: data.password,
-            });
-            setToken(response.access_token);
-            console.log('[Auth] register: token stored');
-
-            const userData = await getCurrentUser();
-            setUser(userData);
-            console.log('[Auth] register: user data fetched, registration complete');
-        } catch (loginError) {
-            console.error('[Auth] register: auto-login failed (but registration succeeded)', loginError);
-            // Registration succeeded but auto-login failed - don't throw
-            // User can manually log in
-            throw new Error('Account created! Please log in manually.');
+            // Convert ApiRequestError to a more user-friendly message
+            if (regError instanceof ApiRequestError) {
+                throw new Error(regError.detail);
+            }
+            // Re-throw with original error if it's already an Error
+            if (regError instanceof Error) {
+                throw regError;
+            }
+            // Fallback for unknown error types
+            throw new Error('Registration failed. Please try again.');
         }
     }, []);
 
