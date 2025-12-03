@@ -51,13 +51,13 @@ su - newsdigest
 
 ```bash
 # Install required packages
-sudo apt install -y python3.11 python3.11-venv python3-pip \
+sudo apt install -y python3.12 python3.12-venv python3-pip \
     postgresql postgresql-contrib \
     nginx certbot python3-certbot-nginx \
     git curl
 
 # Verify Python version
-python3.11 --version
+python3.12 --version
 ```
 
 ### PostgreSQL Setup
@@ -98,7 +98,7 @@ git clone https://github.com/yourusername/news-bot.git .
 
 ```bash
 # Create virtual environment
-python3.11 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
@@ -163,12 +163,16 @@ sudo mkdir -p /var/log/news-digest
 sudo chown newsdigest:newsdigest /var/log/news-digest
 ```
 
-### Run Database Migrations
+### Initialize Database
+
+The database tables are created automatically on application startup via `init_db()`. No migration tool is required.
 
 ```bash
+# Tables are created when the application starts
+# To manually initialize, you can run:
 cd /opt/news-digest
 source venv/bin/activate
-alembic upgrade head
+python -c "from src.database import init_db; import asyncio; asyncio.run(init_db())"
 ```
 
 ## 4. Systemd Service
@@ -614,8 +618,8 @@ sudo tail -f /var/log/nginx/news-digest-access.log
 # Connect to database
 sudo -u newsdigest psql -d newsdigest_db
 
-# Run migrations
-cd /opt/news-digest && source venv/bin/activate && alembic upgrade head
+# Initialize database (tables created on app startup)
+cd /opt/news-digest && source venv/bin/activate && python -c "from src.database import init_db; import asyncio; asyncio.run(init_db())"
 
 # Create backup
 /opt/news-digest/scripts/backup.sh
@@ -628,6 +632,6 @@ cd /opt/news-digest
 git pull origin main
 source venv/bin/activate
 pip install -r requirements.txt
-alembic upgrade head
+# Database tables are created automatically on startup
 sudo systemctl restart news-digest
 ```

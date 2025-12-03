@@ -93,8 +93,8 @@ Business logic layer (pure functions where possible):
 ### 8. Scheduler (`scheduler/`)
 
 APScheduler configuration:
-- **scheduler.py**: BackgroundScheduler instance, lifecycle management
-- **jobs.py**: Job definitions for digest generation
+- **scheduler.py**: AsyncIOScheduler with AsyncIOExecutor, lifecycle management
+- **jobs.py**: Async job definitions for digest generation
 
 ### 9. Middleware (`middleware/`)
 
@@ -295,11 +295,10 @@ Example:
 
 ### Limits
 
-| Endpoint Category                  | Rate Limit                  |
-| ---------------------------------- | --------------------------- |
-| Auth (register/login)              | 5 requests/minute per IP    |
-| API (authenticated)                | 60 requests/minute per user |
-| Digest generation (manual trigger) | 1 request/hour per user     |
+| Endpoint Category     | Rate Limit                           |
+| --------------------- | ------------------------------------ |
+| Auth (register/login) | 10 requests/minute per IP (burst: 5) |
+| API (authenticated)   | 60 requests/minute per user          |
 
 ## Security Considerations
 
@@ -349,7 +348,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains
 
 - All database operations use async SQLAlchemy
 - HTTP clients use `httpx` with async support
-- Scheduler jobs run in thread pool to avoid blocking
+- Scheduler uses AsyncIOExecutor for native async job execution
 
 ## Deployment Architecture
 

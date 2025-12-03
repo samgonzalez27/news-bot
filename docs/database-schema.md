@@ -63,7 +63,7 @@ CREATE TABLE users (
     hashed_password VARCHAR(255) NOT NULL,
     full_name VARCHAR(100) NOT NULL,
     preferred_time TIME NOT NULL DEFAULT '08:00:00',
-    timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',
+    -- timezone VARCHAR(50) NOT NULL DEFAULT 'UTC',  -- Disabled: all users use UTC
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
@@ -78,17 +78,17 @@ CREATE INDEX idx_users_created_at ON users(created_at);
 
 **Column Descriptions:**
 
-| Column            | Type         | Description                                        |
-| ----------------- | ------------ | -------------------------------------------------- |
-| `id`              | UUID         | Primary key, auto-generated                        |
-| `email`           | VARCHAR(255) | User's email address, used for login               |
-| `hashed_password` | VARCHAR(255) | Argon2id hashed password                           |
-| `full_name`       | VARCHAR(100) | User's display name                                |
-| `preferred_time`  | TIME         | Preferred digest delivery time (user's local time) |
-| `timezone`        | VARCHAR(50)  | IANA timezone (e.g., "America/New_York")           |
-| `is_active`       | BOOLEAN      | Whether the account is active                      |
-| `created_at`      | TIMESTAMPTZ  | Account creation timestamp                         |
-| `updated_at`      | TIMESTAMPTZ  | Last update timestamp                              |
+| Column            | Type            | Description                                        |
+| ----------------- | --------------- | -------------------------------------------------- |
+| `id`              | UUID            | Primary key, auto-generated                        |
+| `email`           | VARCHAR(255)    | User's email address, used for login               |
+| `hashed_password` | VARCHAR(255)    | Argon2id hashed password                           |
+| `full_name`       | VARCHAR(100)    | User's display name                                |
+| `preferred_time`  | TIME            | Preferred digest delivery time (user's local time) |
+| ~~`timezone`~~    | ~~VARCHAR(50)~~ | ~~IANA timezone~~ (disabled - all users use UTC)   |
+| `is_active`       | BOOLEAN         | Whether the account is active                      |
+| `created_at`      | TIMESTAMPTZ     | Account creation timestamp                         |
+| `updated_at`      | TIMESTAMPTZ     | Last update timestamp                              |
 
 ### 2. interests
 
@@ -328,16 +328,14 @@ INSERT INTO interests (name, slug, description, newsapi_category, display_order)
     ('Entertainment', 'entertainment', 'Entertainment and celebrity news', 'entertainment', 8);
 ```
 
-## Alembic Migration Setup
+## Database Initialization
 
-For managing migrations in the application, we'll use Alembic with async support.
+The application uses direct table creation via SQLAlchemy's `Base.metadata.create_all()` in the `init_db()` function, rather than migration tools. This approach is suitable for the current project scope.
 
-**alembic.ini** configuration will be generated during setup.
-
-**Migration file naming convention:**
-- `001_initial_schema.py`
-- `002_seed_interests.py`
-- `003_add_column_example.py`
+**Database setup:**
+- Tables are created automatically on application startup if they don't exist
+- Interest seeding is handled by `seed_interests()` function
+- For schema changes, update the models and recreate the database (or manually alter tables in production)
 
 ## Query Patterns
 
@@ -405,9 +403,9 @@ WHERE user_id = $1 AND digest_date = $2;
 
 ### JSONB Considerations
 
-- `headlines_used` and `interests_included` use JSONB for flexibility
-- No GIN indexes needed given query patterns (full field reads only)
-- Keep JSONB fields reasonably sized (< 1MB per row)
+- `headlines_used` and `interests_included` use JSON for cross-database compatibility (SQLite in tests)
+- PostgreSQL still provides good performance with JSON type
+- Keep JSON fields reasonably sized (< 1MB per row)
 
 ## Backup Strategy
 

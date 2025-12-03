@@ -422,10 +422,10 @@ All errors follow a consistent format:
 
 The API implements rate limiting to prevent abuse:
 
-| Endpoint Type            | Limit              |
-| ------------------------ | ------------------ |
-| Authentication endpoints | 5 requests/minute  |
-| All other endpoints      | 60 requests/minute |
+| Endpoint Type            | Limit                             |
+| ------------------------ | --------------------------------- |
+| Authentication endpoints | 10 requests/minute (burst: 5)     |
+| All other endpoints      | 60 requests/minute (configurable) |
 
 When rate limited, you'll receive:
 
