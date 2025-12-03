@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useRequireAuth } from '@/context/AuthContext';
@@ -22,7 +22,11 @@ import {
     Calendar,
     Heart,
     ArrowRight,
+    Eye,
 } from 'lucide-react';
+
+// Minimum loading time to prevent flash (in milliseconds)
+const MIN_LOADING_TIME = 300;
 
 export default function DashboardPage() {
     const { user, isLoading: authLoading } = useRequireAuth();
@@ -32,23 +36,93 @@ export default function DashboardPage() {
     const [recentDigests, setRecentDigests] = useState<DigestSummary[]>([]);
     const [isLoadingDigests, setIsLoadingDigests] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [lastFetchedUserId, setLastFetchedUserId] = useState<string | null>(null);
+    const [fetchError, setFetchError] = useState(false);
 
-    useEffect(() => {
-        const fetchDigests = async () => {
-            try {
-                const response = await getDigests(1, 5);
-                setRecentDigests(response.digests);
-            } catch (error) {
-                console.error('Failed to fetch digests:', error);
-            } finally {
-                setIsLoadingDigests(false);
-            }
-        };
+    // Track if we've done the initial fetch for this user
+    const hasFetchedRef = useRef(false);
 
-        if (user) {
-            fetchDigests();
+    // Compute yesterday's date in UTC (the current digest_date)
+    const currentDigestDate = useMemo(() => {
+        const now = new Date();
+        const yesterday = new Date(Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() - 1
+        ));
+        return yesterday.toISOString().split('T')[0]; // YYYY-MM-DD format
+    }, []);
+
+    // Check if a digest exists for the current digest_date
+    const todaysDigest = useMemo(() => {
+        // Only return a digest if we've finished loading for the current user
+        if (isLoadingDigests) {
+            return undefined;
         }
-    }, [user]);
+        // If we had a fetch error, don't show "Generate Now" - keep undefined
+        if (fetchError) {
+            return undefined;
+        }
+        return recentDigests.find(d => d.digest_date === currentDigestDate);
+    }, [recentDigests, currentDigestDate, isLoadingDigests, fetchError]);
+
+    // Stable fetch function
+    const fetchDigests = useCallback(async (userId: string, forceRefresh = false) => {
+        // Skip if we already have data for this user and not forcing refresh
+        if (!forceRefresh && lastFetchedUserId === userId && recentDigests.length > 0) {
+            setIsLoadingDigests(false);
+            return;
+        }
+
+        setIsLoadingDigests(true);
+        setFetchError(false);
+        const startTime = Date.now();
+
+        try {
+            const response = await getDigests(1, 5);
+
+            // Ensure minimum loading time to prevent flash
+            const elapsed = Date.now() - startTime;
+            if (elapsed < MIN_LOADING_TIME) {
+                await new Promise(resolve => setTimeout(resolve, MIN_LOADING_TIME - elapsed));
+            }
+
+            setRecentDigests(response.digests);
+            setLastFetchedUserId(userId);
+            setFetchError(false);
+        } catch (error) {
+            console.error('Failed to fetch digests:', error);
+            setFetchError(true);
+            // Don't clear existing digests on error - keep showing old data
+        } finally {
+            setIsLoadingDigests(false);
+        }
+    }, [lastFetchedUserId, recentDigests.length]);
+
+    // Single effect to handle fetching digests
+    useEffect(() => {
+        // Skip if no user or still loading auth
+        if (!user) {
+            setIsLoadingDigests(false);
+            return;
+        }
+
+        const userId = user.id;
+
+        // If user changed, reset the fetch flag
+        if (lastFetchedUserId !== userId) {
+            hasFetchedRef.current = false;
+        }
+
+        // Only fetch if we haven't fetched for this user yet
+        if (!hasFetchedRef.current) {
+            hasFetchedRef.current = true;
+            fetchDigests(userId);
+        } else {
+            // We already have data, don't show loading
+            setIsLoadingDigests(false);
+        }
+    }, [user?.id, lastFetchedUserId, fetchDigests]);
 
     const handleGenerateDigest = async () => {
         setIsGenerating(true);
@@ -103,10 +177,22 @@ export default function DashboardPage() {
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
                             <Zap className="h-5 w-5 text-primary" />
-                            Generate Digest
+                            {isLoadingDigests
+                                ? 'Daily Digest'
+                                : fetchError
+                                    ? 'Daily Digest'
+                                    : todaysDigest
+                                        ? "Today's Digest"
+                                        : 'Generate Digest'}
                         </CardTitle>
                         <CardDescription>
-                            Create a personalized news digest based on your interests
+                            {isLoadingDigests
+                                ? 'Checking your digest status...'
+                                : fetchError
+                                    ? 'Unable to check digest status. Please refresh.'
+                                    : todaysDigest
+                                        ? "Your digest for today is ready to read"
+                                        : 'Create a personalized news digest based on your interests'}
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -122,6 +208,33 @@ export default function DashboardPage() {
                                     </Button>
                                 </Link>
                             </div>
+                        ) : isLoadingDigests ? (
+                            <Button
+                                disabled
+                                className="w-full gap-2"
+                            >
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Loading...
+                            </Button>
+                        ) : fetchError ? (
+                            <Button
+                                onClick={() => user && fetchDigests(user.id, true)}
+                                variant="outline"
+                                className="w-full gap-2"
+                            >
+                                <ArrowRight className="h-4 w-4" />
+                                Retry
+                            </Button>
+                        ) : todaysDigest ? (
+                            <Link href={`/digest/${todaysDigest.id}`}>
+                                <Button
+                                    variant="secondary"
+                                    className="w-full gap-2"
+                                >
+                                    <Eye className="h-4 w-4" />
+                                    View Today's Digest
+                                </Button>
+                            </Link>
                         ) : (
                             <Button
                                 onClick={handleGenerateDigest}
