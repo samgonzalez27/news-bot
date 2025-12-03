@@ -933,3 +933,66 @@ Produce a clean, production-ready implementation plan and code patches. The outp
 9. Final checklist
 
 Your output must be exhaustive and ready for direct implementation.
+
+---
+
+# Strengthening Back-end Testing Suite Prompt - Claude Opus 4.5
+
+You are assisting with strengthening a Python test suite for a FastAPI application that uses an internal scheduler to trigger digest-generation jobs. The goal is to fix the failing test, eliminate unawaited-coroutine warnings, harden async job handling, and ensure consistent 100% coverage across all modules.
+
+Context:
+- Python 3.12
+- pytest + pytest-asyncio
+- pytest-cov with `--cov-report=term-missing`
+- Internal scheduler that dispatches async digest-generation jobs using `asyncio.create_task`
+- Test suite size: ~640 tests
+- All tests pass except one
+
+The failing test:
+
+TestDigestGenerationJobWrapper.test_creates_async_task
+tests/unit/test_scheduler_edges.py:297
+AssertionError: Expected 'create_task' to have been called once. Called 0 times.
+
+Warnings:
+- Several tests report “coroutine was never awaited” for `digest_generation_job` and `process_digest_generation`.
+- This indicates that scheduler job wrappers invoke async callables without awaiting or dispatching them correctly.
+- The scheduler job wrapper likely returns the coroutine but never schedules it, causing the `create_task` mock not to trigger.
+
+Coverage Issues:
+- Remaining uncovered lines exist in routers (auth, digests, interests, users), models, schemas, utils, and main.
+- You should propose targeted tests or architecture adjustments only when the coverage gap requires it.
+- The priority is fixing async job dispatch so the scheduler is testable, deterministic, and fully covered.
+
+Your tasks:
+1. Diagnose exactly why `create_task` is not called in TestDigestGenerationJobWrapper.
+2. Provide a corrected implementation of the scheduler job wrapper that:
+   - Accepts an async job function
+   - Ensures it is awaited or dispatched via `asyncio.create_task`
+   - Does not leak unawaited coroutines
+   - Works under pytest-asyncio’s event loop model
+3. Provide corrected test code for test_scheduler_edges.py to ensure deterministic mocking of:
+   - asyncio.create_task
+   - Any scheduler wrapper functions
+4. Eliminate all “coroutine was never awaited” warnings with a proper await/scheduling pattern.
+5. Provide a complete inventory of remaining uncovered lines and propose minimal tests to cover them (without rewriting major architecture).
+6. Give corrected CI commands for:
+   - Running pytest with full coverage
+   - Enforcing 100% coverage
+   - Ensuring async tests run reliably on GitHub Actions (Python 3.12)
+7. Review whether any scheduler jobs require restructuring to ensure they are real async tasks rather than simple callables.
+8. Provide a final, clean diff-style patch for:
+   - scheduler/jobs.py
+   - scheduler/scheduler.py
+   - tests/unit/test_scheduler_edges.py
+   - Any mocks or fixtures required for stable async job testing
+9. Make the solution resilient to future async expansions (i.e., if more scheduled jobs are added).
+
+Produce:
+- A full explanation of root cause
+- A corrected job-wrapper implementation
+- Fully updated tests
+- All necessary patches
+- Final CI command block
+
+Ensure the resulting system has zero warnings, zero flaky async behavior, and full deterministic async task scheduling under test.
