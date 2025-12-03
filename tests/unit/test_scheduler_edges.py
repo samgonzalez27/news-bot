@@ -286,15 +286,24 @@ class TestProcessDigestGeneration:
 
 
 class TestDigestGenerationJobWrapper:
-    """Tests for the sync wrapper function."""
+    """Tests for the async job wrapper function."""
 
-    def test_creates_async_task(self):
-        """Should create an async task."""
-        with patch("src.scheduler.jobs.process_digest_generation") as mock_process:
-            mock_process.return_value = None  # Prevent coroutine creation
-            with patch("asyncio.create_task") as mock_create_task:
-                digest_generation_job()
-                mock_create_task.assert_called_once()
+    @pytest.mark.asyncio
+    async def test_awaits_process_digest_generation(self):
+        """Should await process_digest_generation."""
+        with patch("src.scheduler.jobs.process_digest_generation", new_callable=AsyncMock) as mock_process:
+            await digest_generation_job()
+            mock_process.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_catches_exceptions(self):
+        """Should catch and log exceptions without re-raising."""
+        with patch("src.scheduler.jobs.process_digest_generation", new_callable=AsyncMock) as mock_process:
+            mock_process.side_effect = Exception("Test error")
+            with patch("src.scheduler.jobs.logger") as mock_logger:
+                # Should not raise
+                await digest_generation_job()
+                mock_logger.error.assert_called_once()
 
 
 class TestScheduleDigestJobs:
@@ -306,7 +315,13 @@ class TestScheduleDigestJobs:
             mock_settings.return_value.digest_check_interval_minutes = 15
             
             with patch.object(scheduler, "add_job") as mock_add_job:
-                with patch("asyncio.create_task"):  # Prevent startup task
+                # Mock create_task to consume the coroutine properly
+                def consume_coroutine(coro):
+                    """Close the coroutine to prevent 'never awaited' warning."""
+                    coro.close()
+                    return MagicMock()
+                
+                with patch("asyncio.create_task", side_effect=consume_coroutine):
                     schedule_digest_jobs()
                 
                 mock_add_job.assert_called_once()
@@ -314,7 +329,7 @@ class TestScheduleDigestJobs:
                 assert call_kwargs["id"] == "digest_generation"
                 assert call_kwargs["minutes"] == 15
                 
-                # Verify the func argument is the sync wrapper
+                # Verify the func argument is the async job function
                 call_args = mock_add_job.call_args[0]
                 assert call_args[0] == digest_generation_job
 
@@ -324,11 +339,20 @@ class TestScheduleDigestJobs:
             mock_settings.return_value.digest_check_interval_minutes = 15
             
             with patch.object(scheduler, "add_job"):
-                with patch("asyncio.create_task") as mock_create_task:
+                # Track that create_task was called
+                create_task_called = []
+                
+                def consume_coroutine(coro):
+                    """Close the coroutine and track the call."""
+                    coro.close()
+                    create_task_called.append(True)
+                    return MagicMock()
+                
+                with patch("asyncio.create_task", side_effect=consume_coroutine):
                     schedule_digest_jobs()
                     
                     # Should create task for initial run
-                    mock_create_task.assert_called_once()
+                    assert len(create_task_called) == 1
 
 
 class TestSeedInterestsOnStartup:
