@@ -24,9 +24,10 @@ class TestComputeDigestDate:
     """Tests for compute_digest_date function."""
 
     def test_returns_yesterday(self):
-        """Should return yesterday's date."""
+        """Should return yesterday's date in UTC."""
         result = compute_digest_date()
-        expected = date.today() - timedelta(days=1)
+        # Use UTC to match the implementation
+        expected = datetime.now(timezone.utc).date() - timedelta(days=1)
         assert result == expected
 
 

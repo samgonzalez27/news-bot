@@ -39,6 +39,7 @@ jobstores = {
     "default": MemoryJobStore(),
 }
 
+# Use AsyncIOExecutor to run jobs in the main event loop
 executors = {
     "default": AsyncIOExecutor(),
 }

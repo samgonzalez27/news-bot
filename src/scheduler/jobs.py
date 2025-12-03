@@ -58,7 +58,7 @@ def compute_digest_date() -> date:
     Returns:
         date: Yesterday's date in UTC.
     """
-    return date.today() - timedelta(days=1)
+    return datetime.now(timezone.utc).date() - timedelta(days=1)
 
 
 def compute_time_window(
@@ -329,17 +329,17 @@ async def process_digest_generation() -> None:
             )
 
 
-def digest_generation_job() -> None:
+async def digest_generation_job() -> None:
     """
-    Synchronous wrapper for the async digest generation job.
+    Async job for digest generation.
 
-    APScheduler calls job functions synchronously. This wrapper
-    creates an async task in the running event loop.
-
-    Note: Uses create_task() because the scheduler runs in an
-    AsyncIO context (FastAPI's event loop).
+    APScheduler with AsyncIOExecutor can run async functions directly
+    in the main event loop, which is required for SQLAlchemy async.
     """
-    asyncio.create_task(process_digest_generation())
+    try:
+        await process_digest_generation()
+    except Exception as e:
+        logger.error(f"[SCHEDULER] Failed to run digest generation: {e}", exc_info=True)
 
 
 def schedule_digest_jobs() -> None:
