@@ -57,12 +57,12 @@ docker compose up --build -d
 
 Access the application:
 
-| Service      | URL                   |
-| ------------ | --------------------- |
-| Frontend     | http://localhost      |
-| API Docs     | http://localhost/docs |
+| Service      | URL                     |
+| ------------ | ----------------------- |
+| Frontend     | http://localhost        |
+| API Docs     | http://localhost/docs   |
 | Health Check | http://localhost/health |
-| pgAdmin      | http://localhost:5050 |
+| pgAdmin      | http://localhost:5050   |
 
 ## Project Structure
 
@@ -142,13 +142,13 @@ pytest tests/e2e/
 
 Key environment variables (see `.env.example` for all options):
 
-| Variable            | Description                           | Required |
-| ------------------- | ------------------------------------- | -------- |
-| `JWT_SECRET_KEY`    | Secret for JWT signing (min 32 chars) | Yes      |
-| `NEWSAPI_KEY`       | NewsAPI access key                    | Yes      |
-| `OPENAI_API_KEY`    | OpenAI API key                        | Yes      |
-| `POSTGRES_PASSWORD` | Database password                     | Yes      |
-| `SCHEDULER_ENABLED` | Enable background jobs (default: true)| No       |
+| Variable            | Description                            | Required |
+| ------------------- | -------------------------------------- | -------- |
+| `JWT_SECRET_KEY`    | Secret for JWT signing (min 32 chars)  | Yes      |
+| `NEWSAPI_KEY`       | NewsAPI access key                     | Yes      |
+| `OPENAI_API_KEY`    | OpenAI API key                         | Yes      |
+| `POSTGRES_PASSWORD` | Database password                      | Yes      |
+| `SCHEDULER_ENABLED` | Enable background jobs (default: true) | No       |
 
 ## Available Interests
 
