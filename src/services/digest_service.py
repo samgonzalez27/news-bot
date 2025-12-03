@@ -26,7 +26,7 @@ Usage Patterns:
 """
 
 import time as time_module
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -205,7 +205,7 @@ class DigestService:
         # Default to yesterday's date (UTC)
         # This is the date of the NEWS CONTENT, not the delivery date
         if digest_date is None:
-            digest_date = date.today() - timedelta(days=1)
+            digest_date = datetime.now(timezone.utc).date() - timedelta(days=1)
 
         logger.debug(
             f"generate_digest called: user_id={user_id}, "

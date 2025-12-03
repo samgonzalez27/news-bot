@@ -120,11 +120,11 @@ class NewsService:
         Raises:
             NewsAPIError: If API call fails.
         """
-        # For free tier, limit to yesterday's news
+        # For free tier, limit to yesterday's news (UTC)
         if from_date is None:
-            from_date = date.today() - timedelta(days=1)
+            from_date = datetime.now(timezone.utc).date() - timedelta(days=1)
         if to_date is None:
-            to_date = date.today() - timedelta(days=1)
+            to_date = datetime.now(timezone.utc).date() - timedelta(days=1)
 
         params = {
             "q": query,

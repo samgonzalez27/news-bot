@@ -2,11 +2,11 @@
 Digest schemas for request/response validation.
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class HeadlineInfo(BaseModel):
@@ -24,8 +24,35 @@ class DigestCreate(BaseModel):
 
     digest_date: Optional[date] = Field(
         None,
-        description="Date for the digest (defaults to yesterday)",
+        description="Date for the digest (defaults to yesterday UTC). Cannot be today or in the future.",
     )
+
+    @field_validator("digest_date")
+    @classmethod
+    def validate_digest_date(cls, v: Optional[date]) -> Optional[date]:
+        """
+        Ensure digest_date is not today or in the future.
+        
+        Uses UTC date for consistency across all timezones.
+        The scheduler and database both use UTC, so validation must too.
+        """
+        if v is None:
+            return v
+        # Use UTC date for consistent validation regardless of server/client timezone
+        today_utc = datetime.now(timezone.utc).date()
+        if v >= today_utc:
+            raise ValueError(
+                f"digest_date must be in the past (before {today_utc} UTC). "
+                f"News digests summarize previous days' headlines."
+            )
+        # Also limit how far back (NewsAPI free tier: 1 month)
+        one_month_ago = today_utc - timedelta(days=30)
+        if v < one_month_ago:
+            raise ValueError(
+                f"digest_date cannot be more than 30 days ago (after {one_month_ago}). "
+                f"NewsAPI free tier limitation."
+            )
+        return v
 
     model_config = {
         "json_schema_extra": {
