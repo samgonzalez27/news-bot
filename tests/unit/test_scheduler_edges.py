@@ -16,11 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.scheduler.scheduler import start_scheduler, stop_scheduler, scheduler
 from src.scheduler.jobs import (
-    compute_digest_date,
-    compute_time_window,
     get_users_due_for_digest,
     generate_user_digest,
-    check_digest_exists,
     process_digest_generation,
     digest_generation_job,
     schedule_digest_jobs,
