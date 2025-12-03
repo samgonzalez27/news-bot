@@ -10,14 +10,17 @@ Coverage improvements:
 """
 
 import pytest
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from uuid import uuid4
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from src.scheduler.scheduler import start_scheduler, stop_scheduler, scheduler
 from src.scheduler.jobs import (
+    compute_digest_date,
+    compute_time_window,
     get_users_due_for_digest,
     generate_user_digest,
+    check_digest_exists,
     process_digest_generation,
     digest_generation_job,
     schedule_digest_jobs,
@@ -112,6 +115,8 @@ class TestGenerateUserDigest:
     async def test_generates_digest_for_user(self):
         """Should generate digest for valid user."""
         user_id = uuid4()
+        user_email = "test@example.com"
+        digest_date = date.today() - timedelta(days=1)
         
         mock_session = AsyncMock()
         mock_session_maker = MagicMock(return_value=mock_session)
@@ -119,7 +124,7 @@ class TestGenerateUserDigest:
         mock_session.__aexit__.return_value = None
         
         mock_digest = MagicMock()
-        mock_digest.digest_date = "2024-01-01"
+        mock_digest.digest_date = digest_date
         
         with patch("src.scheduler.jobs.get_async_session_maker", return_value=mock_session_maker):
             with patch("src.scheduler.jobs.DigestService") as mock_service_class:
@@ -127,15 +132,17 @@ class TestGenerateUserDigest:
                 mock_service.generate_digest.return_value = mock_digest
                 mock_service_class.return_value = mock_service
                 
-                result = await generate_user_digest(user_id)
+                success, message = await generate_user_digest(user_id, user_email, digest_date)
                 
-                assert result is True
+                assert success is True
                 mock_service.generate_digest.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_returns_false_on_error(self):
-        """Should return False when generation fails."""
+        """Should return failure tuple when generation fails."""
         user_id = uuid4()
+        user_email = "test@example.com"
+        digest_date = date.today() - timedelta(days=1)
         
         mock_session = AsyncMock()
         mock_session_maker = MagicMock(return_value=mock_session)
@@ -148,9 +155,10 @@ class TestGenerateUserDigest:
                 mock_service.generate_digest.side_effect = Exception("DB error")
                 mock_service_class.return_value = mock_service
                 
-                result = await generate_user_digest(user_id)
+                success, message = await generate_user_digest(user_id, user_email, digest_date)
                 
-                assert result is False
+                assert success is False
+                assert "DB error" in message
                 mock_session.rollback.assert_called_once()
 
 
@@ -178,6 +186,7 @@ class TestProcessDigestGeneration:
         """Should generate digests for users with interests."""
         mock_user = MagicMock()
         mock_user.id = uuid4()
+        mock_user.email = "test@example.com"
         
         mock_session = AsyncMock()
         mock_session_maker = MagicMock(return_value=mock_session)
@@ -193,18 +202,22 @@ class TestProcessDigestGeneration:
                     mock_interest_service.get_user_interests.return_value = [MagicMock()]
                     mock_interest_class.return_value = mock_interest_service
                     
-                    with patch("src.scheduler.jobs.generate_user_digest") as mock_generate:
-                        mock_generate.return_value = True
+                    with patch("src.scheduler.jobs.check_digest_exists") as mock_exists:
+                        mock_exists.return_value = False
                         
-                        await process_digest_generation()
-                        
-                        mock_generate.assert_called_once_with(mock_user.id)
+                        with patch("src.scheduler.jobs.generate_user_digest") as mock_generate:
+                            mock_generate.return_value = (True, "ok")
+                            
+                            await process_digest_generation()
+                            
+                            mock_generate.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_skips_users_without_interests(self):
         """Should skip users without interests."""
         mock_user = MagicMock()
         mock_user.id = uuid4()
+        mock_user.email = "test@example.com"
         
         mock_session = AsyncMock()
         mock_session_maker = MagicMock(return_value=mock_session)
@@ -225,6 +238,36 @@ class TestProcessDigestGeneration:
                         
                         # Should not be called - user has no interests
                         mock_generate.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_users_with_existing_digest(self):
+        """Should skip users who already have a digest."""
+        mock_user = MagicMock()
+        mock_user.id = uuid4()
+        mock_user.email = "test@example.com"
+        
+        mock_session = AsyncMock()
+        mock_session_maker = MagicMock(return_value=mock_session)
+        mock_session.__aenter__.return_value = mock_session
+        mock_session.__aexit__.return_value = None
+        
+        with patch("src.scheduler.jobs.get_async_session_maker", return_value=mock_session_maker):
+            with patch("src.scheduler.jobs.get_users_due_for_digest") as mock_get_users:
+                mock_get_users.return_value = [mock_user]
+                
+                with patch("src.scheduler.jobs.InterestService") as mock_interest_class:
+                    mock_interest_service = AsyncMock()
+                    mock_interest_service.get_user_interests.return_value = [MagicMock()]
+                    mock_interest_class.return_value = mock_interest_service
+                    
+                    with patch("src.scheduler.jobs.check_digest_exists") as mock_exists:
+                        mock_exists.return_value = True  # Digest already exists
+                        
+                        with patch("src.scheduler.jobs.generate_user_digest") as mock_generate:
+                            await process_digest_generation()
+                            
+                            # Should not be called - digest exists
+                            mock_generate.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handles_job_error(self):
@@ -263,7 +306,8 @@ class TestScheduleDigestJobs:
             mock_settings.return_value.digest_check_interval_minutes = 15
             
             with patch.object(scheduler, "add_job") as mock_add_job:
-                schedule_digest_jobs()
+                with patch("asyncio.create_task"):  # Prevent startup task
+                    schedule_digest_jobs()
                 
                 mock_add_job.assert_called_once()
                 call_kwargs = mock_add_job.call_args[1]
@@ -273,6 +317,18 @@ class TestScheduleDigestJobs:
                 # Verify the func argument is the sync wrapper
                 call_args = mock_add_job.call_args[0]
                 assert call_args[0] == digest_generation_job
+
+    def test_runs_initial_check_on_startup(self):
+        """Should run initial digest check on startup."""
+        with patch("src.scheduler.jobs.get_settings") as mock_settings:
+            mock_settings.return_value.digest_check_interval_minutes = 15
+            
+            with patch.object(scheduler, "add_job"):
+                with patch("asyncio.create_task") as mock_create_task:
+                    schedule_digest_jobs()
+                    
+                    # Should create task for initial run
+                    mock_create_task.assert_called_once()
 
 
 class TestSeedInterestsOnStartup:

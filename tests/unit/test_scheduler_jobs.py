@@ -5,16 +5,51 @@ Tests the job functions with mocked database sessions.
 """
 
 import pytest
-from datetime import datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 from src.scheduler.jobs import (
+    compute_digest_date,
+    compute_time_window,
     get_users_due_for_digest,
     generate_user_digest,
+    check_digest_exists,
     process_digest_generation,
     seed_interests_on_startup,
 )
+
+
+class TestComputeDigestDate:
+    """Tests for compute_digest_date function."""
+
+    def test_returns_yesterday(self):
+        """Should return yesterday's date."""
+        result = compute_digest_date()
+        expected = date.today() - timedelta(days=1)
+        assert result == expected
+
+
+class TestComputeTimeWindow:
+    """Tests for compute_time_window function."""
+
+    def test_normal_window(self):
+        """Should compute window within same day."""
+        current = datetime(2024, 1, 1, 8, 0, tzinfo=timezone.utc)
+        start, end, crosses = compute_time_window(current, 15)
+        
+        assert start == time(8, 0)
+        assert end == time(8, 15)
+        assert crosses is False
+
+    def test_midnight_crossing(self):
+        """Should detect midnight crossing."""
+        current = datetime(2024, 1, 1, 23, 50, tzinfo=timezone.utc)
+        start, end, crosses = compute_time_window(current, 15)
+        
+        assert start == time(23, 50)
+        assert end == time(0, 5)
+        assert crosses is True
 
 
 class TestGetUsersDueForDigest:
@@ -81,15 +116,46 @@ class TestGetUsersDueForDigest:
         assert users == []
 
 
+class TestCheckDigestExists:
+    """Tests for check_digest_exists function."""
+
+    @pytest.mark.asyncio
+    async def test_returns_true_when_exists(self):
+        """Should return True when digest exists."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = uuid4()
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await check_digest_exists(mock_db, uuid4(), date.today())
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_not_exists(self):
+        """Should return False when digest doesn't exist."""
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+
+        mock_db = AsyncMock()
+        mock_db.execute.return_value = mock_result
+
+        result = await check_digest_exists(mock_db, uuid4(), date.today())
+        assert result is False
+
+
 class TestGenerateUserDigest:
     """Tests for generate_user_digest function."""
 
     @pytest.mark.asyncio
     async def test_successful_generation(self):
-        """Should generate digest and return True."""
+        """Should generate digest and return success tuple."""
         user_id = uuid4()
+        user_email = "test@example.com"
+        digest_date = date.today() - timedelta(days=1)
+        
         mock_digest = MagicMock()
-        mock_digest.digest_date = datetime.now(timezone.utc).date()
+        mock_digest.digest_date = digest_date
 
         mock_db = AsyncMock()
         mock_session_maker = MagicMock()
@@ -102,16 +168,23 @@ class TestGenerateUserDigest:
                 mock_service.generate_digest.return_value = mock_digest
                 mock_service_class.return_value = mock_service
 
-                result = await generate_user_digest(user_id)
+                success, message = await generate_user_digest(user_id, user_email, digest_date)
 
-        assert result is True
-        mock_service.generate_digest.assert_called_once_with(user_id=user_id, force=False)
+        assert success is True
+        assert "digest_date=" in message
+        mock_service.generate_digest.assert_called_once_with(
+            user_id=user_id,
+            digest_date=digest_date,
+            force=False,
+        )
         mock_db.commit.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_handles_exception(self):
-        """Should return False on exception."""
+        """Should return failure tuple on exception."""
         user_id = uuid4()
+        user_email = "test@example.com"
+        digest_date = date.today() - timedelta(days=1)
 
         mock_db = AsyncMock()
         mock_session_maker = MagicMock()
@@ -124,9 +197,10 @@ class TestGenerateUserDigest:
                 mock_service.generate_digest.side_effect = Exception("Test error")
                 mock_service_class.return_value = mock_service
 
-                result = await generate_user_digest(user_id)
+                success, message = await generate_user_digest(user_id, user_email, digest_date)
 
-        assert result is False
+        assert success is False
+        assert "Test error" in message
         mock_db.rollback.assert_called_once()
 
 
@@ -159,6 +233,7 @@ class TestProcessDigestGeneration:
         user_id = uuid4()
         mock_user = MagicMock()
         mock_user.id = user_id
+        mock_user.email = "test@example.com"
         mock_user.is_active = True
 
         mock_interest = MagicMock()
@@ -174,7 +249,11 @@ class TestProcessDigestGeneration:
         mock_interest_result = MagicMock()
         mock_interest_result.scalars.return_value.all.return_value = [mock_interest]
 
-        mock_db.execute.side_effect = [mock_user_result, mock_interest_result]
+        # Third query for digest exists check
+        mock_exists_result = MagicMock()
+        mock_exists_result.scalar_one_or_none.return_value = None
+
+        mock_db.execute.side_effect = [mock_user_result, mock_interest_result, mock_exists_result]
 
         mock_session_maker = MagicMock()
         mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_db)
@@ -183,10 +262,13 @@ class TestProcessDigestGeneration:
         with patch("src.scheduler.jobs.get_async_session_maker", return_value=mock_session_maker):
             with patch("src.scheduler.jobs.get_settings") as mock_settings:
                 mock_settings.return_value.digest_check_interval_minutes = 15
-                with patch("src.scheduler.jobs.generate_user_digest", return_value=True) as mock_gen:
+                with patch("src.scheduler.jobs.generate_user_digest", return_value=(True, "ok")) as mock_gen:
                     await process_digest_generation()
 
-        mock_gen.assert_called_once_with(user_id)
+        mock_gen.assert_called_once()
+        call_args = mock_gen.call_args
+        assert call_args.kwargs["user_id"] == user_id
+        assert call_args.kwargs["user_email"] == "test@example.com"
 
     @pytest.mark.asyncio
     async def test_skips_users_without_interests(self):
@@ -194,6 +276,7 @@ class TestProcessDigestGeneration:
         user_id = uuid4()
         mock_user = MagicMock()
         mock_user.id = user_id
+        mock_user.email = "test@example.com"
         mock_user.is_active = True
 
         mock_db = AsyncMock()
@@ -219,6 +302,47 @@ class TestProcessDigestGeneration:
                     await process_digest_generation()
 
         # Should NOT have called generate since user has no interests
+        mock_gen.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_skips_users_with_existing_digest(self):
+        """Should skip users who already have digest for today."""
+        user_id = uuid4()
+        mock_user = MagicMock()
+        mock_user.id = user_id
+        mock_user.email = "test@example.com"
+        mock_user.is_active = True
+
+        mock_interest = MagicMock()
+        mock_interest.slug = "technology"
+
+        mock_db = AsyncMock()
+
+        # First query for users
+        mock_user_result = MagicMock()
+        mock_user_result.scalars.return_value.all.return_value = [mock_user]
+        
+        # Second query for user interests
+        mock_interest_result = MagicMock()
+        mock_interest_result.scalars.return_value.all.return_value = [mock_interest]
+
+        # Third query for digest exists check - returns existing
+        mock_exists_result = MagicMock()
+        mock_exists_result.scalar_one_or_none.return_value = uuid4()
+
+        mock_db.execute.side_effect = [mock_user_result, mock_interest_result, mock_exists_result]
+
+        mock_session_maker = MagicMock()
+        mock_session_maker.return_value.__aenter__ = AsyncMock(return_value=mock_db)
+        mock_session_maker.return_value.__aexit__ = AsyncMock(return_value=None)
+
+        with patch("src.scheduler.jobs.get_async_session_maker", return_value=mock_session_maker):
+            with patch("src.scheduler.jobs.get_settings") as mock_settings:
+                mock_settings.return_value.digest_check_interval_minutes = 15
+                with patch("src.scheduler.jobs.generate_user_digest") as mock_gen:
+                    await process_digest_generation()
+
+        # Should NOT have called generate since digest already exists
         mock_gen.assert_not_called()
 
     @pytest.mark.asyncio

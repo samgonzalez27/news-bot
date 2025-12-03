@@ -1,5 +1,28 @@
 """
 Digest service for orchestrating news digest generation.
+
+This service handles the creation and management of personalized news digests.
+It coordinates between NewsAPI (headlines), OpenAI (content generation), and
+the database (persistence).
+
+Key Concepts:
+-------------
+- digest_date: The date of the NEWS CONTENT, not when it was generated.
+  A digest generated on Dec 3rd for "yesterday's news" has digest_date = Dec 2nd.
+
+- Idempotency: generate_digest() is idempotent per (user_id, digest_date).
+  Calling it multiple times with force=False returns the existing digest.
+
+- Generation Sources:
+  1. Scheduled: APScheduler calls at user's preferred_time daily
+  2. Manual: User clicks "Generate Now" via POST /digests/generate
+  Both use the same logic; scheduled calls pass explicit digest_date.
+
+Usage Patterns:
+---------------
+- Scheduled generation: generate_digest(user_id, digest_date=yesterday, force=False)
+- Manual generation: generate_digest(user_id, digest_date=None, force=False)
+- Regeneration: generate_digest(user_id, digest_date=specific, force=True)
 """
 
 import time as time_module
@@ -153,31 +176,57 @@ class DigestService:
         """
         Generate a news digest for a user.
 
+        This is the main entry point for digest creation, used by both:
+        - Scheduled generation (APScheduler at user's preferred_time)
+        - Manual generation (POST /digests/generate)
+
+        Idempotency:
+        ------------
+        Without force=True, this method is idempotent per (user_id, digest_date).
+        If a completed digest exists, it's returned without regeneration.
+        This ensures "Generate Now" and scheduled delivery don't conflict.
+
         Args:
             user_id: User's unique identifier.
-            digest_date: Date for the digest (defaults to yesterday).
-            force: If True, regenerate even if digest exists.
+            digest_date: Date of news content to include.
+                        Defaults to yesterday (UTC) because:
+                        1. NewsAPI free tier returns previous day's headlines
+                        2. A "morning digest" summarizes yesterday's news
+            force: If True, delete existing digest and regenerate.
+                   Used only by explicit "regenerate" requests.
 
         Returns:
-            Digest: Generated or existing digest.
+            Digest: The generated (or existing) digest.
 
         Raises:
             NotFoundError: If user not found.
+            Various: On NewsAPI or OpenAI failures.
         """
-        # Default to yesterday (NewsAPI free tier returns previous day's headlines)
+        # Default to yesterday's date (UTC)
+        # This is the date of the NEWS CONTENT, not the delivery date
         if digest_date is None:
             digest_date = date.today() - timedelta(days=1)
 
-        # Check for existing digest
+        logger.debug(
+            f"generate_digest called: user_id={user_id}, "
+            f"digest_date={digest_date}, force={force}"
+        )
+
+        # Check for existing digest (idempotency check)
         existing = await self.get_digest_by_date(user_id, digest_date)
         if existing:
             if not force and existing.status == DigestStatus.COMPLETED.value:
                 logger.debug(
-                    f"Digest already exists for user {user_id} on {digest_date}"
+                    f"Returning existing digest for user {user_id} "
+                    f"on {digest_date} (id={existing.id})"
                 )
                 return existing
             # If force=True, delete the existing digest to regenerate
             elif force:
+                logger.info(
+                    f"Force regenerating digest for user {user_id} "
+                    f"on {digest_date}"
+                )
                 await self.delete_digest(existing.id, user_id)
 
         # Get user and their interests
