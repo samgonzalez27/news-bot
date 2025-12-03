@@ -49,10 +49,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
                 try {
                     const userData = await getCurrentUser();
                     setUser(userData);
-                } catch {
-                    // Token invalid or expired
-                    removeToken();
-                    setUser(null);
+                } catch (error) {
+                    // Only clear token on authentication errors (401)
+                    // Don't log out on rate limits (429) or server errors (5xx)
+                    if (error instanceof ApiRequestError && error.status === 401) {
+                        removeToken();
+                        setUser(null);
+                    }
+                    // For other errors (rate limit, network), keep the token
+                    // and let the user retry
                 }
             }
             setIsLoading(false);
@@ -103,9 +108,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         try {
             const userData = await getCurrentUser();
             setUser(userData);
-        } catch {
-            // If refresh fails, log out
-            logout();
+        } catch (error) {
+            // Only log out on authentication errors (401)
+            // Don't log out on rate limits (429) or server errors (5xx)
+            if (error instanceof ApiRequestError && error.status === 401) {
+                logout();
+            }
+            // For other errors, silently fail - user stays logged in
         }
     }, [logout]);
 
