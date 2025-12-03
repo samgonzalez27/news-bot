@@ -102,12 +102,11 @@ async function apiFetch<T>(
             errorDetail = response.statusText || errorDetail;
         }
 
-        // Special handling for 401 - clear token and redirect
+        // For 401, just clear the token - let the caller handle redirects
+        // This avoids redirecting from public pages (e.g., landing page)
+        // Protected pages use useRequireAuth which handles redirects properly
         if (response.status === 401) {
             removeToken();
-            if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
-            }
         }
 
         throw new ApiRequestError(response.status, errorDetail);
