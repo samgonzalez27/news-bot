@@ -125,7 +125,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     # Paths with stricter rate limits (auth endpoints)
     AUTH_PATHS = {"/api/v1/auth/register", "/api/v1/auth/login"}
-    AUTH_RATE_LIMIT = 5  # requests per minute
+    AUTH_RATE_LIMIT = 10  # requests per minute
+    AUTH_BURST = 5  # allow register + login + a few retries
     
     # Class-level limiters for testing access
     _default_limiter = None
@@ -141,7 +142,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         )
         self.auth_limiter = RateLimiter(
             requests_per_minute=self.AUTH_RATE_LIMIT,
-            burst=3,
+            burst=self.AUTH_BURST,
         )
         self._last_cleanup = time.time()
         # Store references at class level for testing
