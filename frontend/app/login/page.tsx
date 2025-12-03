@@ -16,6 +16,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { ApiRequestError } from '@/lib/api';
 import { Newspaper, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -54,10 +55,35 @@ export default function LoginPage() {
             });
             router.push('/dashboard');
         } catch (error) {
-            const message =
-                error instanceof Error ? error.message : 'Invalid credentials';
+            // Determine the appropriate error message based on error type
+            let title = 'Login failed';
+            let message = 'An unexpected error occurred. Please try again.';
+
+            if (error instanceof ApiRequestError) {
+                switch (error.status) {
+                    case 401:
+                        title = 'Invalid credentials';
+                        message = 'The email or password you entered is incorrect.';
+                        break;
+                    case 429:
+                        title = 'Too many attempts';
+                        message = 'Please wait a moment before trying again.';
+                        break;
+                    case 500:
+                    case 502:
+                    case 503:
+                        title = 'Server error';
+                        message = 'Our servers are experiencing issues. Please try again later.';
+                        break;
+                    default:
+                        message = error.detail || message;
+                }
+            } else if (error instanceof Error) {
+                message = error.message;
+            }
+
             toast({
-                title: 'Login failed',
+                title,
                 description: message,
                 variant: 'destructive',
             });
