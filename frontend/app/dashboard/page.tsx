@@ -196,11 +196,9 @@ export default function DashboardPage() {
                         <div className="space-y-2">
                             <div className="flex justify-between text-sm">
                                 <span className="text-muted-foreground">Preferred Time</span>
-                                <span className="font-medium">{user.preferred_time}</span>
-                            </div>
-                            <div className="flex justify-between text-sm">
-                                <span className="text-muted-foreground">Timezone</span>
-                                <span className="font-medium">{user.timezone}</span>
+                                <span className="font-medium">
+                                    {user.preferred_time} UTC
+                                </span>
                             </div>
                         </div>
                         <Link href="/settings" className="block mt-4">

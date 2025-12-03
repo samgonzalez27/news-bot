@@ -7,7 +7,8 @@ export interface User {
     email: string;
     full_name: string;
     preferred_time: string;
-    timezone: string;
+    // NOTE: timezone field disabled - all users use UTC
+    // timezone: string;
     is_active: boolean;
     interests: InterestSummary[];
     created_at: string;
@@ -90,12 +91,14 @@ export interface RegisterRequest {
     password: string;
     full_name: string;
     preferred_time?: string;
-    timezone?: string;
+    // NOTE: timezone field disabled - all users use UTC
+    // timezone?: string;
 }
 
 export interface UserPreferencesUpdate {
     preferred_time?: string;
-    timezone?: string;
+    // NOTE: timezone field disabled - all users use UTC
+    // timezone?: string;
 }
 
 export interface UserInterestUpdate {
