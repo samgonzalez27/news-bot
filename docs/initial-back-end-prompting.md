@@ -806,3 +806,130 @@ You must professionally diagnose and fix all root causes. Provide code and reaso
    - Specific notes about where to integrate with our backend  
    - Zero pseudocode  
    - No guesses or vague statements
+
+---
+
+# Back-end Prompt Used to Generate Digest Delivery Logic - Claude Prompting
+
+You are acting as a senior backend engineer responsible for implementing the full daily digest delivery system for our production application. Read all requirements carefully and produce a complete, correct, safe, and idiomatic solution. The goal is to implement reliable per-user scheduled digest generation at their preferred delivery time, every day, forever.
+
+----------------------------------------------------------------------
+SYSTEM CONTEXT (READ CAREFULLY)
+----------------------------------------------------------------------
+
+SCHEDULER
+- APScheduler (AsyncIO)
+- Located in scheduler.py and jobs.py
+- Uses AsyncIOScheduler with MemoryJobStore
+- Timezone: UTC
+- Job defaults:
+  coalesce=True
+  max_instances=1
+  misfire_grace_time=300 seconds
+- A single interval job runs every DIGEST_CHECK_INTERVAL_MINUTES (default 15 minutes)
+- That job calls process_digest_generation(), which:
+  1. Gets current UTC datetime
+  2. Queries users whose preferred_time falls inside the 15-minute window
+  3. Skips users with no interests
+  4. Calls DigestService.generate_digest(user_id, force=False)
+
+USER MODEL (SQLAlchemy)
+- Fields:
+  id (UUID primary key)
+  email (unique)
+  hashed_password
+  full_name
+  preferred_time (Time, default 08:00:00 UTC)
+  created_at, updated_at (UTC)
+  interests relationship (many-to-many)
+  digests relationship (one-to-many)
+- IMPORTANT: There is currently NO timezone field. All logic is UTC.
+
+DIGEST PIPELINE
+- Service: digest_service.py
+- Function: generate_digest(user_id, digest_date=None, force=False)
+- Logic:
+  * digest_date defaults to yesterday (UTC)
+  * If a digest already exists for digest_date, return it unless force=True
+  * Prevents multiple digests per day
+  * Fetches user interests → fetches headlines → GPT summary → creates Digest record
+  * Uses OpenAI gpt-4o-mini
+- API endpoints:
+  POST /digests/generate (rate-limited 1/hr)
+  POST /digests/regenerate/{date}
+  GET /digests/latest, /digests/by-date/{date}, list, delete
+- Users must be authenticated via JWT Bearer tokens
+
+FRONTEND BEHAVIOR
+- Users choose:
+  1. Preferred delivery time (HH:MM)
+  2. Eventually: preferred timezone (NOT IMPLEMENTED)
+- “Generate Now” calls POST /digests/generate
+- Daily delivery is NOT yet implemented — this is what you must build.
+
+INFRASTRUCTURE
+- FastAPI backend with embedded APScheduler worker
+- Dockerized environment, will run on DigitalOcean droplet
+- PostgreSQL persistence
+- Scheduler process runs inside the API container
+
+
+----------------------------------------------------------------------
+YOUR TASK
+----------------------------------------------------------------------
+
+Your job is to design and implement the **complete daily scheduled digest delivery system** so that:
+
+1. Each user receives exactly one digest per day at their preferred delivery time.
+2. The system continues generating digests every day forever.
+3. The scheduler is robust, time-zone-correct (UTC only for now), and does not miss or double-fire digests.
+4. “Generate Now” still functions normally and does not interfere with the schedule.
+5. No user receives duplicates for the same date unless forced.
+6. The solution integrates cleanly into the existing APScheduler interval job model.
+
+You must deliver:
+
+1. A full root-cause analysis of what currently works and what does not.
+2. The ideal overall architecture for daily digest generation.
+3. Required changes to database models (if any).
+4. Required changes to scheduler.py and jobs.py:
+   - How the scheduler should compute the eligible users for each 15-minute window.
+   - How to prevent duplicate digests when both “Generate Now” and scheduled events occur.
+   - How to compute digest_date properly (yesterday vs today).
+5. Precise instructions for adding timezone support in the future, but do NOT implement it now.
+6. Updated logic for DigestService.generate_digest to support this daily scheduling cleanly.
+7. Full code patches (not pseudo-code) for:
+   - scheduler.py
+   - jobs.py
+   - user preferences update endpoint (if needed)
+   - any update to digest_service.py
+   - any update to database queries
+8. Correct SQLAlchemy query for selecting all users whose preferred_time falls in the current 15-minute window:
+   - Time comparisons must be done safely using SQLAlchemy and timezone-aware UTC.
+9. A safe strategy to avoid race conditions or duplicate digest generation within the 15-minute check interval.
+10. A recommended test plan.
+
+IMPORTANT CONSTRAINTS
+- DO NOT replace the scheduler architecture. You must build on the current APScheduler interval model.
+- DO NOT implement user timezones. Work strictly in UTC.
+- DO NOT change how JWT authentication works.
+- DO NOT break the daily “one digest per user per day” guarantee.
+- Ensure the system runs safely even if DIGEST_CHECK_INTERVAL_MINUTES changes (e.g., 5 min, 30 min).
+
+
+----------------------------------------------------------------------
+DELIVERABLE
+----------------------------------------------------------------------
+Produce a clean, production-ready implementation plan and code patches. The output should be structured into:
+
+1. Summary of root cause
+2. Required backend changes
+3. Updated scheduler logic
+4. Updated digest generation flow
+5. Updated API behavior
+6. Code patches for all affected files
+7. Migration notes (if schema changes)
+8. Test plan
+9. Final checklist
+
+Your output must be exhaustive and ready for direct implementation.
