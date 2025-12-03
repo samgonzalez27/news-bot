@@ -156,6 +156,3 @@ logs/
 *.log
 .env.local
 .env.*.local
-
-# Alembic
-alembic/versions/*.pyc

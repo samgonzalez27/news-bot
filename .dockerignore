@@ -59,9 +59,6 @@ docker-compose*.yml
 .docker
 .dockerignore
 
-# Kubernetes
-kubernetes/
-
 # CI/CD
 .github
 

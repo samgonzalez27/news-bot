@@ -110,8 +110,7 @@ async def init_db() -> None:
     """
     Initialize the database by creating all tables.
 
-    Should be called on application startup in development.
-    Use Alembic migrations for production.
+    Called on application startup to ensure tables exist.
     """
     async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

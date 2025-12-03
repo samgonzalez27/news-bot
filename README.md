@@ -18,7 +18,6 @@ A full-stack, production-ready application that delivers personalized AI-powered
 ### Backend
 - **Framework**: FastAPI (async)
 - **Database**: PostgreSQL 16 with async SQLAlchemy
-- **Migrations**: Alembic
 - **Authentication**: JWT (python-jose) + Argon2
 - **Scheduler**: APScheduler
 - **External APIs**: NewsAPI, OpenAI
@@ -93,7 +92,6 @@ news-bot/
 │   │   └── lib/          # API client, types
 │   └── nginx/            # Frontend nginx config
 ├── nginx/                 # Reverse proxy config
-├── alembic/              # Database migrations
 ├── tests/                # Backend test suite
 ├── docs/                 # Documentation
 ├── docker-compose.yml    # Full stack definition
@@ -111,9 +109,6 @@ source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
-
-# Run migrations
-alembic upgrade head
 
 # Start development server
 uvicorn src.main:app --reload --port 8000
