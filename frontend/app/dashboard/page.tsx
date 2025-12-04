@@ -132,7 +132,7 @@ export default function DashboardPage() {
                 title: 'Digest generated!',
                 description: 'Your personalized news digest is ready.',
             });
-            router.push(`/digest/${digest.id}`);
+            router.push(`/digest/view?id=${digest.id}`);
         } catch (error) {
             const message = error instanceof Error ? error.message : 'Failed to generate digest';
             toast({
@@ -226,7 +226,7 @@ export default function DashboardPage() {
                                 Retry
                             </Button>
                         ) : todaysDigest ? (
-                            <Link href={`/digest/${todaysDigest.id}`}>
+                            <Link href={`/digest/view?id=${todaysDigest.id}`}>
                                 <Button
                                     variant="secondary"
                                     className="w-full gap-2"
@@ -352,7 +352,7 @@ export default function DashboardPage() {
                 ) : (
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {recentDigests.map((digest) => (
-                            <Link key={digest.id} href={`/digest/${digest.id}`}>
+                            <Link key={digest.id} href={`/digest/view?id=${digest.id}`}>
                                 <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
                                     <CardHeader className="pb-2">
                                         <CardTitle className="text-lg">
