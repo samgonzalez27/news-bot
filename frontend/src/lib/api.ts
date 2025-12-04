@@ -17,7 +17,8 @@ import type {
     ApiError,
 } from './types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use NEXT_PUBLIC_API_URL if set, otherwise use relative URLs (for reverse proxy setups)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 const API_PREFIX = '/api/v1';
 const TOKEN_KEY = 'newsdigest_token';
 
