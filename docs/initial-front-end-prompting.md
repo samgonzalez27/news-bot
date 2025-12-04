@@ -954,3 +954,48 @@ Deliverables:
 - Professional-grade fixes
 - Updated code
 - A clear test/validation plan
+
+---
+
+# Claude Prompt Used to Fix Front-end Routing
+
+You are an expert in Next.js 14 (App Router), SSR/CSR boundaries, route segment rendering, caching, and deployment diagnostics. Fix the following production bug:
+
+Problem:
+- Reloading /dashboard/ renders the landing-page UI instead of the dashboard UI.
+- The URL stays at /dashboard/.
+- This only occurs on hard reloads or direct navigation.
+- Client-side navigation works correctly.
+- The project uses Next.js App Router, server components for most pages, and a custom middleware.ts.
+
+Your Tasks:
+1. Identify all root causes that can make Next.js serve the wrong route tree on reload.
+   Include:
+   - Misconfigured routing structure (e.g., nested layouts, default.js, intercepting routes).
+   - Middleware rewriting conditions that redirect non-matching paths to /(landing) unintentionally.
+   - Issues with static rendering, prerender caching, or improperly cached HTML.
+   - Deploy environment configuration errors (Vercel, Node, container) that cause fallback HTML to be returned.
+   - Wrong export or default-export collisions.
+   - Missing `dynamic = "force-dynamic"` where required.
+
+2. Provide a step-by-step diagnostic workflow with exact file checks:
+   - app/dashboard/page.tsx
+   - app/dashboard/layout.tsx
+   - app/page.tsx
+   - app/(marketing)/page.tsx (if applicable)
+   - middleware.ts rewrite/redirect logic
+   - next.config.js experimental flags
+   - `.next` build output structure
+   - Vercel routes config (if applicable)
+
+3. Provide targeted code fixes with minimal edits.
+   Examples:
+   - Correcting middleware rewrite conditions.
+   - Adjusting segment config: `export const dynamic = "force-dynamic"` or removing static generation.
+   - Fixing layout nesting issues.
+   - Removing conflicting default routes.
+   - Ensuring dashboard is not pre-rendered into static HTML.
+
+4. Provide a final “Implementation Patch” containing the corrected middleware, route structure, and config variants.
+
+Deliver the answer as a structured, authoritative technical breakdown with full reasoning and code blocks.
