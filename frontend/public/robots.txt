@@ -6,4 +6,4 @@ Disallow: /digest/
 Disallow: /interests/
 Disallow: /settings/
 
-Sitemap: https://your-domain.com/sitemap.xml
+Sitemap: https://dailydigestbot.com
