@@ -16,7 +16,8 @@ interface UseFetchResult<T> {
     refetch: () => Promise<void>;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use NEXT_PUBLIC_API_URL if set, otherwise use relative URLs (for reverse proxy setups)
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 /**
  * Custom hook for client-side data fetching with automatic auth header injection
