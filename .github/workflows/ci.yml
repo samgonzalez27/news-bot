@@ -159,34 +159,56 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Placeholder for DigitalOcean deployment
-      # Uncomment and configure when ready for production deployment
-      #
-      # - name: Install doctl
-      #   uses: digitalocean/action-doctl@v2
-      #   with:
-      #     token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-      #
-      # - name: Deploy to DigitalOcean Droplet
-      #   uses: appleboy/ssh-action@v1.0.0
-      #   with:
-      #     host: ${{ secrets.DROPLET_HOST }}
-      #     username: ${{ secrets.DROPLET_USER }}
-      #     key: ${{ secrets.DROPLET_SSH_KEY }}
-      #     script: |
-      #       cd /opt/news-digest
-      #       docker compose pull
-      #       docker compose up -d
-      #       docker system prune -f
-
-      - name: Deployment placeholder
+      - name: Set up SSH
         run: |
-          echo "## Deployment Status 🚀" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "⚠️ **Deployment step is a placeholder.**" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Configure the following secrets to enable deployment:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`DIGITALOCEAN_ACCESS_TOKEN\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`DROPLET_HOST\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`DROPLET_USER\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`DROPLET_SSH_KEY\`" >> $GITHUB_STEP_SUMMARY
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${{ secrets.DROPLET_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to DigitalOcean Droplet
+        run: |
+          ssh -i ~/.ssh/deploy_key ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} << 'EOF'
+            set -e
+            echo "🚀 Starting deployment..."
+            
+            cd ~/apps/news-bot
+            
+            # Pull latest code
+            git pull origin main
+            
+            # Rebuild and deploy
+            docker compose -f docker-compose.prod.yml build
+            docker compose -f docker-compose.prod.yml up -d
+            
+            # Wait for services to be healthy
+            sleep 15
+            
+            # Verify deployment
+            if curl -sf http://localhost:8000/health > /dev/null; then
+              echo "✅ API health check passed"
+            else
+              echo "❌ API health check failed"
+              exit 1
+            fi
+            
+            # Clean up old images
+            docker image prune -f
+            
+            echo "✅ Deployment completed successfully!"
+          EOF
+
+      - name: Production Health Check
+        run: |
+          sleep 10
+          status_code=$(curl -s -o /dev/null -w "%{http_code}" https://dailydigestbot.com/api/health)
+          if [ $status_code -eq 200 ]; then
+            echo "✅ Production health check passed (HTTP $status_code)"
+          else
+            echo "❌ Production health check failed (HTTP $status_code)"
+            exit 1
+          fi
+
+      - name: Cleanup SSH
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
