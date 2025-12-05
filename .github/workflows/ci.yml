@@ -179,9 +179,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
-            # Rebuild and deploy
-            docker compose -f docker-compose.prod.yml build
-            docker compose -f docker-compose.prod.yml up -d
+            # Rebuild and deploy (prod file is an overlay on base compose file)
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml build
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
             
             # Wait for services to be healthy
             sleep 15
