@@ -996,3 +996,69 @@ Produce:
 - Final CI command block
 
 Ensure the resulting system has zero warnings, zero flaky async behavior, and full deterministic async task scheduling under test.
+
+---
+
+# Fix Devevelopment Environment Problems - Claud Prompt
+
+You are an expert DevOps and full-stack engineer. Your task is to diagnose and correct a broken development/deployment setup for a Docker-based application that uses Nginx as a reverse proxy, a Python/FastAPI backend, a Next.js frontend, and Postgres. The developer recently changed local environment variables to resemble production ones, which caused the local Docker environment to fail with:
+
+“dependency failed to start: container news-digest-api is unhealthy”
+
+The real issue is that local and production environments became entangled. Local containers expect internal Docker hostnames (e.g., news-digest-db), while production expects real domain names (dailydigestbot.com). The FastAPI API container’s healthcheck fails because it cannot connect to the expected services with the wrong environment variables.
+
+Your goal is to determine the **true root cause** and produce a clean, maintainable, professional solution.
+
+Deliverables:
+
+1. **Root-Cause Analysis**
+   - Identify precisely why the API container fails its healthcheck.
+   - Identify how production-style env vars broke the local setup.
+   - Identify all incorrect assumptions about Nginx routing, domains, or container networking.
+
+2. **Correct Architecture Explanation**
+   - Describe the correct relationship between:
+     - Nginx (reverse proxy)
+     - Frontend container
+     - API container
+     - Database container
+   - Clarify how requests should flow in development vs production.
+   - Explain exactly how internal Docker hostnames work.
+
+3. **Environment Separation Plan**
+   - Provide a clean strategy where local development and production never interfere.
+   - Define which env vars should exist in:
+     - `.env.local`
+     - `.env.production`
+     - Docker secrets or droplet environment files
+   - Ensure variable names match across environments, but values differ.
+
+4. **Configuration Corrections**
+   - Provide corrected versions of:
+     - Local docker-compose.yml env configuration
+     - Local Nginx config
+     - Production Nginx config
+     - Local `.env` file
+     - Production `.env` template
+   - Ensure all routing works without needing to manually toggle values.
+
+5. **Healthcheck Fix**
+   - Diagnose the current API healthcheck failure.
+   - Provide a correct, reliable healthcheck for FastAPI in Docker.
+   - Ensure the healthcheck works in both local and production environments without modification.
+
+6. **Zero-Friction Dev Workflow**
+   - Provide a workflow where:
+     - Developer writes code locally.
+     - Developer uses local env vars.
+     - Dev containers run and communicate correctly.
+     - Production droplet uses its own env vars and Nginx config.
+     - No hard-coded URLs appear anywhere.
+     - Switching between environments requires zero file changes.
+
+7. **Final “Implementation Patch”**
+   - Summarize all required fixes.
+   - Provide file diffs or configuration blocks as needed.
+   - Ensure everything is ready to paste into version control and deploy.
+
+Act as a senior DevOps engineer analyzing a broken real-world containerized deployment. Provide exact corrections, not guesses. Identify all hidden pitfalls and resolve them comprehensively.
