@@ -179,6 +179,9 @@ jobs:
             git fetch origin main
             git reset --hard origin/main
             
+            # Stop and remove existing containers to free up ports
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml down --remove-orphans || true
+            
             # Rebuild and deploy (prod file is an overlay on base compose file)
             docker compose -f docker-compose.yml -f docker-compose.prod.yml build
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
