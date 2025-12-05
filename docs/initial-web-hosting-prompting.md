@@ -53,3 +53,42 @@ Deliver everything as a clearly structured, professional deployment **runbook**.
 
 # Constraint
 Do not ask me questions. The output must be fully actionable on a new DigitalOcean droplet with no prior configuration.
+
+---
+
+# Fix Deployment Issues - Claude Prompt
+
+You are acting as a senior DevOps engineer. Analyze and fix the following DigitalOcean deployment failure that occurred during our GitHub Actions CI pipeline when pushing to main:
+
+## Error Log
+error: The following untracked working tree files would be overwritten by merge:
+    docker-compose.prod.yml
+Please move or remove them before you merge.
+Updating cb099f0..55d6e23
+Aborting
+Error: Process completed with exit code 1.
+
+## Context
+1. Deployment target is an Ubuntu 24.04 DigitalOcean droplet.
+2. The CI pipeline SSHes into the droplet, runs `git pull`, then rebuilds Docker services.
+3. The repository contains a tracked file named `docker-compose.prod.yml`.
+4. The droplet already has a non-tracked `docker-compose.prod.yml` created manually in earlier testing.
+5. When the pipeline runs `git pull`, Git halts because the untracked file conflicts with the tracked one coming from the repo.
+
+## Objectives
+1. Identify the exact root cause of the failure.
+2. Propose a clean, production-safe fix that prevents this error permanently.
+3. Provide updated CI steps if appropriate.
+4. Provide updated server-side setup instructions if appropriate.
+5. Consider best practices for:
+   - Ensuring the droplet always has a clean working directory.
+   - Preventing manual server edits from blocking future Git pulls.
+   - Ensuring Docker Compose production files always come from GitHub as source of truth.
+6. Deliver a final recommended approach for long-term stability.
+
+## Deliverables
+1. A precise explanation of why Git aborted the pull.
+2. Three possible solutions, each with pros/cons.
+3. A recommended production solution with exact commands.
+4. Updated GitHub Actions deploy job if needed.
+
