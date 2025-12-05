@@ -174,8 +174,10 @@ jobs:
             
             cd ~/apps/news-bot
             
-            # Pull latest code
-            git pull origin main
+            # Fetch latest code and reset to match remote exactly
+            # This prevents conflicts from untracked files or local modifications
+            git fetch origin main
+            git reset --hard origin/main
             
             # Rebuild and deploy
             docker compose -f docker-compose.prod.yml build
