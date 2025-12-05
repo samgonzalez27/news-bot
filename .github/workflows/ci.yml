@@ -190,7 +190,7 @@ jobs:
             sleep 15
             
             # Verify deployment (check inside container since port isn't exposed to host)
-            if docker exec news-bot-api-1 curl -sf http://localhost:8000/health > /dev/null; then
+            if docker exec news-digest-api curl -sf http://localhost:8000/health > /dev/null; then
               echo "✅ API health check passed"
             else
               echo "❌ API health check failed"
