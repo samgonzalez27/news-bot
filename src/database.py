@@ -111,7 +111,14 @@ async def init_db() -> None:
     Initialize the database by creating all tables.
 
     Called on application startup to ensure tables exist.
+    
+    IMPORTANT: This imports all models to ensure they are registered
+    with SQLAlchemy's metadata before create_all is called.
     """
+    # Import all models to register them with Base.metadata
+    # This is critical - without these imports, tables won't be created
+    from src.models import Digest, Interest, User, UserInterest  # noqa: F401
+    
     async with get_engine().begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

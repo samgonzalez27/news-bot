@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.config import get_settings
-from src.database import close_db, init_db
+from src.database import close_db
 from src.exceptions import register_exception_handlers
 from src.logging_config import set_request_id, setup_logging
 from src.middleware.rate_limiter import RateLimitMiddleware
@@ -27,7 +27,6 @@ from src.routers import (
     users_router,
 )
 from src.scheduler import start_scheduler, stop_scheduler
-from src.scheduler.jobs import seed_interests_on_startup
 from src.services.news_service import close_news_service
 from src.services.openai_service import close_openai_service
 
@@ -81,6 +80,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Application lifespan manager.
 
     Handles startup and shutdown events.
+    
+    Note: Database initialization and data seeding are handled by the 
+    entrypoint script (scripts/entrypoint.sh) before the application starts.
+    This ensures proper startup ordering and allows for retry logic.
     """
     # Get settings and logger at runtime (not import time)
     settings = get_settings()
@@ -88,14 +91,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Startup
     log.info(f"Starting {settings.app_name} ({settings.app_env})")
-
-    # Initialize database (development only - use migrations in production)
-    if settings.is_development:
-        await init_db()
-        log.info("Database tables initialized")
-
-    # Seed interests
-    await seed_interests_on_startup()
 
     # Start scheduler
     start_scheduler()

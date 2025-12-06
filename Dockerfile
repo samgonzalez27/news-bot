@@ -50,6 +50,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
+    netcat-openbsd \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -67,6 +68,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy application code
 COPY --chown=appuser:appgroup . .
 
+# Make entrypoint script executable
+RUN chmod +x /app/scripts/entrypoint.sh
+
 # Create log directory with proper permissions
 RUN mkdir -p /var/log/news-digest \
     && chown -R appuser:appgroup /var/log/news-digest
@@ -80,6 +84,9 @@ EXPOSE 8000
 # Health check - verify the API is responding
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
+
+# Use entrypoint script for startup orchestration
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]
 
 # Default command - start the API server
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
