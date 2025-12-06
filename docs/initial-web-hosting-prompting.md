@@ -92,3 +92,88 @@ Error: Process completed with exit code 1.
 3. A recommended production solution with exact commands.
 4. Updated GitHub Actions deploy job if needed.
 
+---
+
+# Fix Connection Error Issues Upon Deployment - Claude Prompting
+
+You are acting as a senior DevOps/SRE engineer. We have a production outage: the public domain `dailydigestbot.com` returns **ERR_CONNECTION_REFUSED**, even after cache clearing and browser resets. The issue persists across devices and networks.
+
+## Facts
+1. Claude previously tested the server:
+   - Direct IP (45.55.141.61) returned HTTP 200.
+   - Domain resolved correctly and returned HTTP 200.
+   - DNS records for `A` root and `www` pointed to 45.55.141.61.
+2. Despite that, **real users cannot connect to `http://dailydigestbot.com`**.
+3. The domain still fails after:
+   - Ctrl+Shift+R hard reload
+   - Incognito mode
+   - Browser change
+   - Multiple physical devices
+4. The server was modified in the most recent deployment.
+5. Docker Compose is used for production; the API and frontend run inside containers.
+
+## Required Diagnosis Tasks
+Investigate all plausible causes for a domain-based **ERR_CONNECTION_REFUSED**, including:
+
+### Networking
+- Whether the server is binding only to `localhost` or an internal interface.
+- Whether Docker services expose ports publicly or only internally.
+- Whether UFW, iptables, or DigitalOcean firewall blocks port 80 or 443.
+
+### Nginx / Reverse Proxy
+- Whether Nginx is running.
+- Whether Nginx is listening on the expected ports.
+- Whether Nginx is forwarding traffic to the correct container/service.
+- Whether the latest deployment overwrote or removed the Nginx config.
+
+### Docker
+- Whether the frontend container is actually running.
+- Whether the service is mapped with `ports:` and not only `expose:`.
+- Whether health checks fail and cause the service to restart repeatedly.
+
+### DNS
+- Whether DNS propagation changed.
+- Whether DNS is resolving via IPv6 (AAAA) when only IPv4 is served.
+- Whether the root domain correctly serves traffic without redirect loops.
+
+## Deliverables
+1. A ranked list of the most likely root causes based on the symptoms.
+2. Exact Linux commands I should run on the droplet to confirm each cause.
+3. Recommendations for what to check inside Docker (docker ps, logs, compose configs).
+4. If the failure is likely due to Nginx, provide a correct production-safe config.
+5. A final recommended fix with exact commands.
+
+## Goal
+Produce a structured, step-by-step, minimally ambiguous debugging plan to restore public access to `http://dailydigestbot.com` and prevent future connection-refused outages.
+
+---
+
+# Re-attempt at Fixing Connection Issues - Prompt
+
+You are acting as a senior DevOps/SRE engineer. Your task is to identify the root cause of a production deployment failure. The domain is dailydigestbot.com, hosted on a DigitalOcean droplet running multiple Docker containers behind an nginx-alpine reverse proxy. The site currently returns ERR_CONNECTION_REFUSED from external browsers, even though DNS resolves correctly and Docker shows ports 80 and 443 exposed.
+
+Available facts:
+- DNS A record for dailydigestbot.com points to 45.55.141.61 and resolves correctly.
+- Docker ps confirms an nginx-alpine container exposing 0.0.0.0:80->80/tcp and 0.0.0.0:443->443/tcp.
+- ss -tulpn on host shows listeners on ports 80 and 443.
+- DigitalOcean firewall has now been created; inbound ports 80 and 443 are allowed.
+- The project includes a frontend, backend, and nginx reverse proxy container.
+- The site does not load over HTTP or HTTPS from the public internet.
+- Browser error: “ERR_CONNECTION_REFUSED”.
+- We suspect a misconfiguration in one of: nginx config, listen/bind directives, upstream routing inside Docker, SSL/redirect config, DigitalOcean firewall assignment, droplet-level firewall rules, or container-level health.
+
+Your goal:
+1. Analyze potential root causes based on the architecture and symptoms.
+2. Provide a structured step-by-step diagnostic plan to isolate the failure.
+3. Provide the exact commands to run inside the droplet and inside the nginx container (curl tests, nginx -t, log paths, netstat/ss checks, docker exec checks, and minimal static web test).
+4. Identify the most likely root causes given the evidence.
+5. Provide the most efficient fix strategies for each likely root cause.
+6. Provide a fallback “minimal working configuration” for nginx inside Docker to confirm external connectivity.
+
+Your output must be:
+- Highly technical.
+- Structured into clear numbered sections.
+- Focused only on root causes, diagnosis, and concrete fixes.
+- Written as if actively guiding a DevOps engineer during a production incident.
+
+Begin.
