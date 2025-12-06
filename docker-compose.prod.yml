@@ -79,11 +79,11 @@ services:
     # Expose only necessary ports
     ports:
       - "80:80"
-      - "443:443" # For SSL (when configured)
-    # Mount production nginx config (if different)
-    # volumes:
-    #   - ./nginx/nginx-prod.conf:/etc/nginx/nginx.conf:ro
-    #   - /etc/letsencrypt:/etc/letsencrypt:ro  # SSL certificates
+      - "443:443"
+    # Mount SSL certificates from Let's Encrypt
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     deploy:
       resources:
         limits:
